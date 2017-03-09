@@ -350,7 +350,7 @@ void NodePrivate::connectInput(size_t pin, NodePrivate *targ)
     std::string pinName;
     if (nodeType() == Node::CellNode)
     {
-        if (pin > inputs.size())
+        if (pin >= inputs.size())
         {
             std::cerr << "Invalid output pin number: " << pin << std::endl;
             return;
@@ -360,7 +360,7 @@ void NodePrivate::connectInput(size_t pin, NodePrivate *targ)
     else
     {
         std::ostringstream oss;
-        if (pin > inputs.size())
+        if (pin >= inputs.size())
         {
             oss << inputNames.size();
             inputNames.push_back(oss.str());
@@ -387,7 +387,7 @@ void NodePrivate::connectOutput(size_t pin, NodePrivate *targ)
     std::string pinName;
     if (nodeType() == Node::CellNode)
     {
-        if (pin > outputs.size())
+        if (pin >= outputs.size())
         {
             std::cerr << "Invalid output pin number: " << pin << std::endl;
             return;
@@ -397,7 +397,7 @@ void NodePrivate::connectOutput(size_t pin, NodePrivate *targ)
     else
     {
         std::ostringstream oss;
-        if (pin > outputs.size())
+        if (pin >= outputs.size())
         {
             oss << outputNames.size();
             outputNames.push_back(oss.str());
@@ -1529,10 +1529,10 @@ void Circuit::load(std::fstream &infile, const std::string &path, CellLibrary &l
                             else
                             {
                                 // TODO Handle literal like 1'b0, 1'b1
-                                std::cerr << "No port/wire can be connected" << std::endl;
+                                std::cerr << "No port/wire can be connected: " << from << std::endl;
                             }
                         }
-                        else { gate.connectOutput(k-1, w); }
+                        else { gate.connectOutput(k, w); }
                     }
                     else
                     {
@@ -1541,11 +1541,11 @@ void Circuit::load(std::fstream &infile, const std::string &path, CellLibrary &l
                         {
                             Port p = module.port(from);
                             if (!p.isNull())
-                                gate.connectInput(k, p);
+                                gate.connectInput(k-1, p);
                             else
                             {
                                 // TODO Handle literal like 1'b0, 1'b1
-                                std::cerr << "No port/wire can be connected" << std::endl;
+                                std::cerr << "No port/wire can be connected: " << from << std::endl;
                             }
                         }
                         else { gate.connectInput(k-1, w); }
@@ -1595,7 +1595,7 @@ void Circuit::load(std::fstream &infile, const std::string &path, CellLibrary &l
                                 else
                                 {
                                     // TODO Handle literal like 1'b0, 1'b1
-                                    std::cerr << "No port/wire can be connected" << std::endl;
+                                    std::cerr << "No port/wire can be connected: " << from << std::endl;
                                 }
                             }
                             else { cell.connectInput(k, w); }
@@ -1612,7 +1612,7 @@ void Circuit::load(std::fstream &infile, const std::string &path, CellLibrary &l
                                 else
                                 {
                                     // TODO Handle literal like 1'b0, 1'b1
-                                    std::cerr << "No port/wire can be connected" << std::endl;
+                                    std::cerr << "No port/wire can be connected: " << from << std::endl;
                                 }
                             }
                             else { cell.connectInput(k, w); }
