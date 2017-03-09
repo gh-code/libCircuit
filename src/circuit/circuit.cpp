@@ -8,6 +8,8 @@
 #include "../parser/verilog/driver.h"
 #include "../parser/verilog/expression.h"
 
+//#define DEBUG 1
+
 /**************************************************************
  *
  * Private class declerations
@@ -345,35 +347,36 @@ void NodePrivate::connect(const std::string &pin, NodePrivate *targ)
 
 void NodePrivate::connectInput(size_t pin, NodePrivate *targ)
 {
-    if (pin > inputs.size())
+    std::string pinName;
+    if (nodeType() == Node::CellNode)
     {
-        std::cerr << "Invalid input pin number: " << pin << std::endl;
-        return;
-    }
-
-    std::string pinName = inputNames[pin];
-
-    if (inputs[pinName] != 0)
-    {
-        std::cerr << "WARNING: reconnect input pin " << pin << std::endl;
-        std::map<std::string,NodePrivate*>::iterator found;
-        for (found = targ->outputs.begin(); found != targ->outputs.end(); ++found)
-            if (found->second == this)
-                break;
-        if (found != targ->outputs.end())
+        if (pin > inputs.size())
         {
-            //targ->outputNames.erase(i);
-            targ->outputs.erase(found);
-            this->ref.deref();
+            std::cerr << "Invalid output pin number: " << pin << std::endl;
+            return;
         }
-        inputs[pinName]->ref.deref();
+        pinName = inputNames[pin];
     }
+    else
+    {
+        std::ostringstream oss;
+        if (pin > inputs.size())
+        {
+            oss << inputNames.size();
+            inputNames.push_back(oss.str());
+        }
+        else
+            oss << pin;
+        pinName = oss.str();
+    }
+
+    // TODO handle reconnect
 
     std::ostringstream oss;
     oss << targ->outputNames.size();
     targ->outputNames.push_back(oss.str());
     targ->outputs[oss.str()] = this;
-    this->ref.ref();
+    //this->ref.ref();
 
     inputs[pinName] = targ;
     targ->ref.ref();
@@ -381,35 +384,36 @@ void NodePrivate::connectInput(size_t pin, NodePrivate *targ)
 
 void NodePrivate::connectOutput(size_t pin, NodePrivate *targ)
 {
-    if (pin > outputs.size())
+    std::string pinName;
+    if (nodeType() == Node::CellNode)
     {
-        std::cerr << "Invalid output pin number: " << pin << std::endl;
-        return;
-    }
-
-    std::string pinName = outputNames[pin];
-
-    if (outputs[pinName] != 0)
-    {
-        std::cerr << "WARNING: reconnect output pin " << pin << std::endl;
-        std::map<std::string,NodePrivate*>::iterator found;
-        for (found = targ->inputs.begin(); found != targ->inputs.end(); ++found)
-            if (found->second == this)
-                break;
-        if (found != targ->inputs.end())
+        if (pin > outputs.size())
         {
-            //targ->outputNames.erase(i);
-            targ->inputs.erase(found);
-            this->ref.deref();
+            std::cerr << "Invalid output pin number: " << pin << std::endl;
+            return;
         }
-        outputs[pinName]->ref.deref();
+        pinName = outputNames[pin];
     }
+    else
+    {
+        std::ostringstream oss;
+        if (pin > outputs.size())
+        {
+            oss << outputNames.size();
+            outputNames.push_back(oss.str());
+        }
+        else
+            oss << pin;
+        pinName = oss.str();
+    }
+
+    // TODO handle reconnect
 
     std::ostringstream oss;
-    oss << targ->outputNames.size();
+    oss << targ->inputNames.size();
     targ->inputNames.push_back(oss.str());
     targ->inputs[oss.str()] = this;
-    this->ref.ref();
+    //this->ref.ref();
 
     outputs[pinName] = targ;
     targ->ref.ref();
@@ -818,6 +822,8 @@ NodePrivate* GatePrivate::cloneNode(bool deep)
  *
  **************************************************************/
 
+#define IMPL ((GatePrivate*)impl)
+
 Gate::Gate()
 {
     impl = 0;
@@ -842,6 +848,15 @@ Gate& Gate::operator=(const Gate &x)
 {
     return (Gate&) Node::operator=(x);
 }
+
+Gate::GateType Gate::gateType() const
+{
+    if (!impl)
+        return Gate::BaseGate;
+    return IMPL->gateType();
+}
+
+#undef IMPL
 
 /**************************************************************
  *
@@ -1346,6 +1361,12 @@ void Circuit::load(std::fstream &infile, const std::string &path, CellLibrary &l
     VNModule *topModule = ((VNModule*)(verilog.expressions[0]));
     impl = new CircuitPrivate(topModule->name());
 
+    // TODO implement it
+    if (verilog.expressions.size() > 1)
+    {
+        std::cerr << "Error: Multiple module feature is not supported yet" << std::endl;
+    }
+
     // Start building circuit
     for (unsigned int ei = 0; ei < verilog.expressions.size(); ++ei)
     {
@@ -1481,20 +1502,53 @@ void Circuit::load(std::fstream &infile, const std::string &path, CellLibrary &l
             {
                 VNInstance *inst = gInst->inst(j);
                 Gate gate = module.createGate(inst->name(), type);
+#ifdef DEBUG
                 std::cout << inst->connSize() << std::endl;
                 std::cout << inst->name() << "(" << gInst->type() << ")" << std::endl;
+#endif
                 for (size_t k = 0; k < inst->connSize(); k++)
                 {
                     //std::string to = inst->conn(k)->to();
                     std::string from = inst->conn(k)->from();
+#ifdef DEBUG
                     std::string spaces(2, ' ');
-                    if (k == 0) {
-                        // output
+                    if (k == 0)
                         std::cout << spaces << "Output is connected to '" << from << "'" << std::endl;
+                    else
+                        std::cout << spaces << "Input " << k - 1 << " is connected to '" << from << "'" << std::endl;
+#endif
+                    if (k == 0)
+                    {
+                        // output
+                        Wire w = module.wire(from);
+                        if (w.isNull())
+                        {
+                            Port p = module.port(from);
+                            if (!p.isNull())
+                                gate.connectOutput(k, p);
+                            else
+                            {
+                                // TODO Handle literal like 1'b0, 1'b1
+                                std::cerr << "No port/wire can be connected" << std::endl;
+                            }
+                        }
+                        else { gate.connectOutput(k-1, w); }
                     }
                     else
                     {
-                        std::cout << spaces << "Input " << k - 1 << " is connected to '" << from << "'" << std::endl;
+                        Wire w = module.wire(from);
+                        if (w.isNull())
+                        {
+                            Port p = module.port(from);
+                            if (!p.isNull())
+                                gate.connectInput(k, p);
+                            else
+                            {
+                                // TODO Handle literal like 1'b0, 1'b1
+                                std::cerr << "No port/wire can be connected" << std::endl;
+                            }
+                        }
+                        else { gate.connectInput(k-1, w); }
                     }
                 }
             }
@@ -1512,6 +1566,7 @@ void Circuit::load(std::fstream &infile, const std::string &path, CellLibrary &l
 
                 if (cell.isNull())
                 {
+                    std::cerr << "WARNING: Unknown module: " << mInst->name() << std::endl;
                     // Connect modules after modules are all created.
                     // TODO somewhere to store module connectivity
                     continue;
@@ -1528,18 +1583,44 @@ void Circuit::load(std::fstream &infile, const std::string &path, CellLibrary &l
                         std::cout << cell.name() << "(" << cell.type() << ")" << std::endl;
                         std::string spaces(2, ' ');
                         //TODO
-                        //cell.connect(k, module.wire(from));
+                        //
                         if (!cell.input(k).isNull())
                         {
-                           std::cout << spaces << "Input '" << k << "' is connected to '" << from << "'" << std::endl;
+                            Wire w = module.wire(from);
+                            if (w.isNull())
+                            {
+                                Port p = module.port(from);
+                                if (!p.isNull())
+                                    cell.connectInput(k, p);
+                                else
+                                {
+                                    // TODO Handle literal like 1'b0, 1'b1
+                                    std::cerr << "No port/wire can be connected" << std::endl;
+                                }
+                            }
+                            else { cell.connectInput(k, w); }
+                            //std::cout << spaces << "Input '" << k << "' is connected to '" << from << "'" << std::endl;
                         }
                         else if (!cell.output(k).isNull())
                         {
-                           std::cout << spaces << "Output '" << k << "' is connected to '" << from << "'" << std::endl;
+                            Wire w = module.wire(from);
+                            if (w.isNull())
+                            {
+                                Port p = module.port(from);
+                                if (!p.isNull())
+                                    cell.connectOutput(k, p);
+                                else
+                                {
+                                    // TODO Handle literal like 1'b0, 1'b1
+                                    std::cerr << "No port/wire can be connected" << std::endl;
+                                }
+                            }
+                            else { cell.connectInput(k, w); }
+                            //std::cout << spaces << "Output '" << k << "' is connected to '" << from << "'" << std::endl;
                         }
                         else
                         {
-                           std::cout << spaces << "Don't known how to connect '" << k << "' and '" << from << "'" << std::endl;
+                            std::cout << spaces << "Don't known how to connect '" << k << "' and '" << from << "'" << std::endl;
                         }
                     }
                     else
@@ -1551,7 +1632,10 @@ void Circuit::load(std::fstream &infile, const std::string &path, CellLibrary &l
                             if (!p.isNull())
                                 cell.connect(to, p);
                             else
+                            {
+                                // TODO Handle literal like 1'b0, 1'b1
                                 std::cerr << "No port/wire can be connected" << std::endl;
+                            }
                         }
                         else { cell.connect(to, w); }
                     }

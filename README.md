@@ -2,10 +2,10 @@
 
 libCircuit is a C++ Library for EDA software development
 
-*WARNING: Alpha version.*
+*WARNING: Alpha version is not suitable for practical usage*
 
 ## Requirement
-* Qt 5.8 (Untested on lower version but may be fine)
+* Qt 5.8 (Untested on lower version but it may be fine)
 * Bison and Flex
 
 ## Usage
@@ -103,9 +103,7 @@ int main()
 ## Changelog
 
 ## Issues
-* Primitive gate is not handled yet
 * Multiple module is not handled yet
-* Module/cell call-by-port-order is not handled yet
 * Reference counting issue
 
 ## License
