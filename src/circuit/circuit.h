@@ -189,6 +189,10 @@ public:
     double delay() const;
     double slew() const;
 
+    void addInputPinName(const std::string&);
+    void addOutputPinName(const std::string&);
+    Port::PortType pinType(size_t) const;
+
     // Overridden from Node
     inline Node::NodeType nodeType() const { return CellNode; }
 

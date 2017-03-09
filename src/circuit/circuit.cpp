@@ -120,6 +120,9 @@ public:
     std::string cellType() const { return type; }
 
     void setName(const std::string &name);
+    void addInputPinName(const std::string &pinName);
+    void addOutputPinName(const std::string &pinName);
+    Port::PortType pinType(size_t i) const;
 
     // Reimplemented from NodePrivate
     NodePrivate* cloneNode(bool deep = true);
@@ -127,6 +130,7 @@ public:
 
     double area;
     std::string type;
+    std::vector<Port::PortType> pinTypes;
 };
 
 class ModulePrivate : public NodePrivate
@@ -869,6 +873,7 @@ CellPrivate::CellPrivate(CellPrivate* n, bool deep)
  {
      name = n->name;
      type = n->type;
+     pinTypes = n->pinTypes;
  }
 
 CellPrivate::CellPrivate(CircuitPrivate *c, NodePrivate* p, const std::string &name_, const std::string &type_)
@@ -893,6 +898,23 @@ NodePrivate* CellPrivate::cloneNode(bool deep)
 void CellPrivate::setName(const std::string &name_)
 {
     name = name_;
+}
+
+void CellPrivate::addOutputPinName(const std::string &pinName)
+{
+    NodePrivate::addOutputPinName(pinName);
+    pinTypes.push_back(Port::Output);
+}
+
+void CellPrivate::addInputPinName(const std::string &pinName)
+{
+    NodePrivate::addInputPinName(pinName);
+    pinTypes.push_back(Port::Input);
+}
+
+Port::PortType CellPrivate::pinType(size_t i) const
+{
+    return pinTypes[i];
 }
 
 /**************************************************************
@@ -956,6 +978,27 @@ std::string Cell::type() const
     if (!impl)
         return std::string();
     return IMPL->cellType();
+}
+
+void Cell::addInputPinName(const std::string &pinName)
+{
+    if (!impl)
+        return;
+    IMPL->addInputPinName(pinName);
+}
+
+void Cell::addOutputPinName(const std::string &pinName)
+{
+    if (!impl)
+        return;
+    IMPL->addOutputPinName(pinName);
+}
+
+Port::PortType Cell::pinType(size_t i) const
+{
+    if (!impl)
+        return Port::BasePort;
+    return IMPL->pinType(i);
 }
 
 #undef IMPL
@@ -1574,53 +1617,77 @@ void Circuit::load(std::fstream &infile, const std::string &path, CellLibrary &l
 
                 cell.setName(mInst->inst(0)->name());
 
+                size_t inputCount = 0;
+                size_t outputCount = 0;
                 for (size_t k = 0; k < inst->connSize(); k++)
                 {
                     std::string to = inst->conn(k)->to();
                     std::string from = inst->conn(k)->from();
                     if (to == "")
                     {
+#ifdef DEBUG
                         std::cout << cell.name() << "(" << cell.type() << ")" << std::endl;
                         std::string spaces(2, ' ');
+                        std::cout << spaces;
+                        if (cell.pinType(k) == Port::Input)
+                            std::cout << "Input '" << k << "' is connected to '" << from << "'" << std::endl;
+                        else if (cell.pinType(k) == Port::Output)
+                            std::cout << "Output '" << k << "' is connected to '" << from << "'" << std::endl;
+                        else
+                            std::cout << "Don't known how to connect '" << k << "' and '" << from << "'" << std::endl;
+#endif
                         //TODO
                         //
-                        if (!cell.input(k).isNull())
+
+                        if (cell.pinType(k) == Port::Input)
                         {
                             Wire w = module.wire(from);
                             if (w.isNull())
                             {
                                 Port p = module.port(from);
                                 if (!p.isNull())
-                                    cell.connectInput(k, p);
+                                {
+                                    cell.connectInput(inputCount, p);
+                                    inputCount++;
+                                }
                                 else
                                 {
                                     // TODO Handle literal like 1'b0, 1'b1
                                     std::cerr << "No port/wire can be connected: " << from << std::endl;
                                 }
                             }
-                            else { cell.connectInput(k, w); }
-                            //std::cout << spaces << "Input '" << k << "' is connected to '" << from << "'" << std::endl;
+                            else
+                            {
+                                cell.connectInput(inputCount, w);
+                                inputCount++;
+                            }
                         }
-                        else if (!cell.output(k).isNull())
+                        else if (cell.pinType(k) == Port::Output)
                         {
                             Wire w = module.wire(from);
                             if (w.isNull())
                             {
                                 Port p = module.port(from);
                                 if (!p.isNull())
-                                    cell.connectOutput(k, p);
+                                {
+                                    cell.connectOutput(outputCount, p);
+                                    outputCount++;
+                                }
                                 else
                                 {
                                     // TODO Handle literal like 1'b0, 1'b1
                                     std::cerr << "No port/wire can be connected: " << from << std::endl;
                                 }
                             }
-                            else { cell.connectInput(k, w); }
-                            //std::cout << spaces << "Output '" << k << "' is connected to '" << from << "'" << std::endl;
+                            else
+                            {
+                                cell.connectOutput(outputCount, w);
+                                outputCount++;
+                            }
                         }
                         else
                         {
-                            std::cout << spaces << "Don't known how to connect '" << k << "' and '" << from << "'" << std::endl;
+                            std::cout << "Don't known how to connect '" << k << "' and '" << from << "'" << std::endl;
                         }
                     }
                     else
