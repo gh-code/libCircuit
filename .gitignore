@@ -33,9 +33,10 @@
 lex.*.cpp
 *.output
 
-# QMake Makefiles
+# QMake
 src/*/Makefile
 src/Makefile
+.qmake.stash
 
 # Others
 *.log

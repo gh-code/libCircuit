@@ -8,8 +8,6 @@
 #include "../parser/verilog/driver.h"
 #include "../parser/verilog/expression.h"
 
-//#define DEBUG 1
-
 /**************************************************************
  *
  * Private class declerations
@@ -226,13 +224,13 @@ NodePrivate::NodePrivate(NodePrivate* n, bool deep) : ref(1)
 
 NodePrivate::~NodePrivate()
 {
-    // std::map<std::string,NodePrivate*>::iterator it;
-    // for (it = outputs.begin(); it != outputs.end(); ++it)
-    //     if (!it->second->ref.deref())
-    //         delete it->second;
-    // for (it = inputs.begin(); it != inputs.end(); ++it)
-    //     if (!it->second->ref.deref())
-    //         delete it->second;
+    std::map<std::string,NodePrivate*>::iterator it;
+    for (it = outputs.begin(); it != outputs.end(); ++it)
+        if (it->second && !it->second->ref.deref())
+            delete it->second;
+    for (it = inputs.begin(); it != inputs.end(); ++it)
+        if (it->second && !it->second->ref.deref())
+            delete it->second;
 }
 
 CircuitPrivate* NodePrivate::ownerCircuit()
@@ -323,11 +321,13 @@ void NodePrivate::addOutputPinName(const std::string &pinName)
 
 void NodePrivate::connect(const std::string &pin, NodePrivate *targ)
 {
+    if (targ == this)
+        return;
+
     if (hasOutput(pin))
     {
-        targ->ref.ref();
         outputs[pin] = targ;
-        //targ->ref.ref();
+        targ->ref.ref();
         std::ostringstream oss;
         oss << targ->inputNames.size();
         targ->inputNames.push_back(oss.str());
@@ -335,9 +335,8 @@ void NodePrivate::connect(const std::string &pin, NodePrivate *targ)
     }
     else if (hasInput(pin))
     {
-        targ->ref.ref();
         inputs[pin] = targ;
-        //this->ref.ref();
+        targ->ref.ref();
         std::ostringstream oss;
         oss << targ->outputNames.size();
         targ->outputNames.push_back(oss.str());
@@ -351,6 +350,9 @@ void NodePrivate::connect(const std::string &pin, NodePrivate *targ)
 
 void NodePrivate::connectInput(size_t pin, NodePrivate *targ)
 {
+    if (targ == this)
+        return;
+
     std::string pinName;
     if (nodeType() == Node::CellNode)
     {
@@ -380,7 +382,6 @@ void NodePrivate::connectInput(size_t pin, NodePrivate *targ)
     oss << targ->outputNames.size();
     targ->outputNames.push_back(oss.str());
     targ->outputs[oss.str()] = this;
-    //this->ref.ref();
 
     inputs[pinName] = targ;
     targ->ref.ref();
@@ -388,6 +389,9 @@ void NodePrivate::connectInput(size_t pin, NodePrivate *targ)
 
 void NodePrivate::connectOutput(size_t pin, NodePrivate *targ)
 {
+    if (targ == this)
+        return;
+
     std::string pinName;
     if (nodeType() == Node::CellNode)
     {
@@ -417,7 +421,6 @@ void NodePrivate::connectOutput(size_t pin, NodePrivate *targ)
     oss << targ->inputNames.size();
     targ->inputNames.push_back(oss.str());
     targ->inputs[oss.str()] = this;
-    //this->ref.ref();
 
     outputs[pinName] = targ;
     targ->ref.ref();
@@ -1029,15 +1032,15 @@ static void deleteNameMap(std::map<std::string,T*> &nm)
     typename std::map<std::string,T*>::iterator it;
     for (it = nm.begin(); it != nm.end(); ++it)
     {
-        it->second->ref.deref();
-        delete it->second;
+        if (it->second && !it->second->ref.deref())
+            delete it->second;
     }
 }
 
 ModulePrivate::~ModulePrivate()
 {
-    //deleteNameMap(ports);
-    //deleteNameMap(wires);
+    // deleteNameMap(ports);
+    // deleteNameMap(wires);
     deleteNameMap(cells);
     deleteNameMap(gates);
 }
@@ -1381,6 +1384,63 @@ static void handlePortWireRange(const std::string &name, VNRange *range, void (*
     }
 }
 
+static void handleOtherExpr(Module &module, Gate &gate, const std::string &expr)
+{
+    (void) module;
+    (void) gate;
+    (void) expr;
+}
+
+static void handleInputCallByOrder(Module &module, Gate &gate, const std::string &from, size_t *counter)
+{
+    Port p = module.port(from);
+    if (p.isNull())
+    {
+        Wire w = module.wire(from);
+        if (!w.isNull())
+        {
+            gate.connectInput((*counter), w);
+            (*counter)++;
+        }
+        else
+        {
+            // TODO Handle literal like 1'b0, 1'b1
+            handleOtherExpr(module, gate, from);
+            std::cerr << "No port/wire can be connected: " << from << std::endl;
+        }
+    }
+    else
+    {
+        gate.connectInput((*counter), p);
+        (*counter)++;
+    }
+}
+
+static void handleOutputCallByOrder(Module &module, Gate &gate, const std::string &from, size_t *counter)
+{
+    Port p = module.port(from);
+    if (p.isNull())
+    {
+        Wire w = module.wire(from);
+        if (!w.isNull())
+        {
+            gate.connectOutput((*counter), w);
+            (*counter)++;
+        }
+        else
+        {
+            // TODO Handle literal like 1'b0, 1'b1
+            handleOtherExpr(module, gate, from);
+            std::cerr << "No port/wire can be connected: " << from << std::endl;
+        }
+    }
+    else
+    {
+        gate.connectOutput((*counter), p);
+        (*counter)++;
+    }
+}
+
 void Circuit::load(std::fstream &infile, const std::string &path, CellLibrary &lib)
 {
     if (impl && impl->ref.deref())
@@ -1549,6 +1609,8 @@ void Circuit::load(std::fstream &infile, const std::string &path, CellLibrary &l
                 std::cout << inst->connSize() << std::endl;
                 std::cout << inst->name() << "(" << gInst->type() << ")" << std::endl;
 #endif
+                size_t inputCounter = 0;
+                size_t outputCounter = 0;
                 for (size_t k = 0; k < inst->connSize(); k++)
                 {
                     //std::string to = inst->conn(k)->to();
@@ -1560,39 +1622,10 @@ void Circuit::load(std::fstream &infile, const std::string &path, CellLibrary &l
                     else
                         std::cout << spaces << "Input " << k - 1 << " is connected to '" << from << "'" << std::endl;
 #endif
-                    if (k == 0)
-                    {
-                        // output
-                        Wire w = module.wire(from);
-                        if (w.isNull())
-                        {
-                            Port p = module.port(from);
-                            if (!p.isNull())
-                                gate.connectOutput(k, p);
-                            else
-                            {
-                                // TODO Handle literal like 1'b0, 1'b1
-                                std::cerr << "No port/wire can be connected: " << from << std::endl;
-                            }
-                        }
-                        else { gate.connectOutput(k, w); }
-                    }
+                    if (k == 0) // output
+                        handleOutputCallByOrder(module, gate, from, &outputCounter);
                     else
-                    {
-                        Wire w = module.wire(from);
-                        if (w.isNull())
-                        {
-                            Port p = module.port(from);
-                            if (!p.isNull())
-                                gate.connectInput(k-1, p);
-                            else
-                            {
-                                // TODO Handle literal like 1'b0, 1'b1
-                                std::cerr << "No port/wire can be connected: " << from << std::endl;
-                            }
-                        }
-                        else { gate.connectInput(k-1, w); }
-                    }
+                        handleInputCallByOrder(module, gate, from, &inputCounter);
                 }
             }
         }
@@ -1617,8 +1650,8 @@ void Circuit::load(std::fstream &infile, const std::string &path, CellLibrary &l
 
                 cell.setName(mInst->inst(0)->name());
 
-                size_t inputCount = 0;
-                size_t outputCount = 0;
+                size_t inputCounter = 0;
+                size_t outputCounter = 0;
                 for (size_t k = 0; k < inst->connSize(); k++)
                 {
                     std::string to = inst->conn(k)->to();
@@ -1640,55 +1673,11 @@ void Circuit::load(std::fstream &infile, const std::string &path, CellLibrary &l
                         //
 
                         if (cell.pinType(k) == Port::Input)
-                        {
-                            Wire w = module.wire(from);
-                            if (w.isNull())
-                            {
-                                Port p = module.port(from);
-                                if (!p.isNull())
-                                {
-                                    cell.connectInput(inputCount, p);
-                                    inputCount++;
-                                }
-                                else
-                                {
-                                    // TODO Handle literal like 1'b0, 1'b1
-                                    std::cerr << "No port/wire can be connected: " << from << std::endl;
-                                }
-                            }
-                            else
-                            {
-                                cell.connectInput(inputCount, w);
-                                inputCount++;
-                            }
-                        }
+                            handleInputCallByOrder(module, cell, from, &inputCounter);
                         else if (cell.pinType(k) == Port::Output)
-                        {
-                            Wire w = module.wire(from);
-                            if (w.isNull())
-                            {
-                                Port p = module.port(from);
-                                if (!p.isNull())
-                                {
-                                    cell.connectOutput(outputCount, p);
-                                    outputCount++;
-                                }
-                                else
-                                {
-                                    // TODO Handle literal like 1'b0, 1'b1
-                                    std::cerr << "No port/wire can be connected: " << from << std::endl;
-                                }
-                            }
-                            else
-                            {
-                                cell.connectOutput(outputCount, w);
-                                outputCount++;
-                            }
-                        }
+                            handleOutputCallByOrder(module, cell, from, &outputCounter);
                         else
-                        {
                             std::cout << "Don't known how to connect '" << k << "' and '" << from << "'" << std::endl;
-                        }
                     }
                     else
                     {
@@ -1701,6 +1690,7 @@ void Circuit::load(std::fstream &infile, const std::string &path, CellLibrary &l
                             else
                             {
                                 // TODO Handle literal like 1'b0, 1'b1
+                                handleOtherExpr(module, cell, from);
                                 std::cerr << "No port/wire can be connected" << std::endl;
                             }
                         }

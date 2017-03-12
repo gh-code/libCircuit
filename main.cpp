@@ -9,6 +9,19 @@ void usage()
     cout << "./circuit <verilog>" << endl;
 }
 
+void forward(const Node &node)
+{
+    static int level = 0;
+    string spaces(2 * level, ' ');
+    cout << spaces << node.nodeName() << endl;
+    for (size_t i = 0; i < node.outputSize(); i++)
+    {
+        level++;
+        forward(node.output(i));
+        level--;
+    }
+}
+
 void backward(const Node &node)
 {
     static int level = 0;
@@ -46,6 +59,9 @@ int main(int argc, char *argv[])
 
     for (size_t i = 0; i < circuit.outputSize(); i++)
         backward(circuit.outputPort(i));
+    for (size_t i = 0; i < circuit.inputSize(); i++)
+        forward(circuit.inputPort(i));
+        
     // for (size_t i = 0; i < circuit.moduleSize(); i++)
     //     cout << circuit.module(i).name() << " ";
     // cout << endl;
