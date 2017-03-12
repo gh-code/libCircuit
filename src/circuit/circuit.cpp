@@ -224,13 +224,13 @@ NodePrivate::NodePrivate(NodePrivate* n, bool deep) : ref(1)
 
 NodePrivate::~NodePrivate()
 {
-    std::map<std::string,NodePrivate*>::iterator it;
-    for (it = outputs.begin(); it != outputs.end(); ++it)
-        if (it->second && !it->second->ref.deref())
-            delete it->second;
-    for (it = inputs.begin(); it != inputs.end(); ++it)
-        if (it->second && !it->second->ref.deref())
-            delete it->second;
+    // std::map<std::string,NodePrivate*>::iterator it;
+    // for (it = outputs.begin(); it != outputs.end(); ++it)
+    //     if (it->second && !it->second->ref.deref())
+    //         delete it->second;
+    // for (it = inputs.begin(); it != inputs.end(); ++it)
+    //     if (it->second && !it->second->ref.deref())
+    //         delete it->second;
 }
 
 CircuitPrivate* NodePrivate::ownerCircuit()
@@ -1039,8 +1039,8 @@ static void deleteNameMap(std::map<std::string,T*> &nm)
 
 ModulePrivate::~ModulePrivate()
 {
-    // deleteNameMap(ports);
-    // deleteNameMap(wires);
+    deleteNameMap(ports);
+    deleteNameMap(wires);
     deleteNameMap(cells);
     deleteNameMap(gates);
 }
