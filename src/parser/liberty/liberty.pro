@@ -1,6 +1,6 @@
 include( ../common.pri )
 TEMPLATE = lib
-TARGET = verilog
+TARGET = liberty
 HEADERS = driver.h parser.h scanner.h expression.h \
     y.tab.h location.hh position.hh stack.hh
 SOURCES = parser.cc scanner.cc driver.cc
