@@ -333,6 +333,13 @@ bool CellLibrary::load(std::fstream &infile, const std::string &path)
     return impl->load(infile, path);
 }
 
+size_t CellLibrary::cellCount() const
+{
+    if (!impl)
+        return 0;
+    return impl->cells.size();
+}
+
 bool CellLibrary::hasCell(const std::string &type) const
 {
     if (!impl)

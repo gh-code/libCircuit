@@ -30,6 +30,8 @@ public:
     double nom_temperature() const;
     double nom_voltage() const;
 
+    size_t cellCount() const;
+    inline size_t size() const { return cellCount(); }
     bool hasCell(const std::string &type) const;
     Cell cell(const std::string &type) const;
 

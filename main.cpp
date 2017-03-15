@@ -48,6 +48,7 @@ void printCircuitInfo(const Circuit &circuit)
 void printCellLibraryInfo(const CellLibrary &library)
 {
     cout << "library: " << library.name() << endl;
+    cout << "cell_count: " << library.cellCount() << endl;
     cout << "time_unit: " << library.time_unit() << endl;
     cout << "leakage_power_unit: " << library.leakage_power_unit() << endl;
     cout << "voltage_unit: " << library.voltage_unit() << endl;
