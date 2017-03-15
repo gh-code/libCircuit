@@ -74,11 +74,52 @@ WS  [ \t\v\n\f]
     // reset location
     yylloc->step();
 %}
- 
+
  /*** BEGIN EXAMPLE - Change the Liberty lexer rules below ***/
 
 "library"                           { return token::LIBRARY; }
 "define"                            { return token::DEFINE; }
+"time_unit"                         { return token::TIME_UNIT; }
+"leakage_power_unit"                { return token::LEAKAGE_POWER_UNIT; }
+"voltage_unit"                      { return token::VOLTAGE_UNIT; }
+"current_unit"                      { return token::CURRENT_UNIT; }
+"pulling_resistance_unit"           { return token::PULLING_RESISTANCE_UNIT; }
+"capacitive_load_unit"              { return token::CAPACITIVE_LOAD_UNIT; }
+"nom_process"                       { return token::NOM_PROCESS; }
+"nom_temperature"                   { return token::NOM_TEMPERATURE; }
+"nom_voltage"                       { return token::NOM_VOLTAGE; }
+"lu_table_template"                 { return token::LU_TABLE_TEMPLATE; }
+"variable_1"                        { return token::VARIABLE_1; }
+"variable_2"                        { return token::VARIABLE_2; }
+"index_1"                           { return token::INDEX_1; }
+"index_2"                           { return token::INDEX_2; }
+"cell"                              { return token::CELL; }
+"area"                              { return token::AREA; }
+"cell_leakage_power"                { return token::CELL_LEAKAGE_POWER; }
+"leakage_power"                     { return token::LEAKAGE_POWER; }
+"pin"                               { return token::PIN; }
+"direction"                         { return token::DIRECTION; }
+"function"                          { return token::FUNCTION; }
+"max_capacitance"                   { return token::MAX_CAPACITANCE; }
+"max_transition"                    { return token::MAX_TRANSITION; }
+"timing"                            { return token::TIMING; }
+"related_pin"                       { return token::RELATED_PIN; }
+"timing_sense"                      { return token::TIMING_SENSE; }
+"timing_type"                       { return token::TIMING_TYPE; }
+"cell_fall"                         { return token::CELL_FALL; }
+"cell_rise"                         { return token::CELL_RISE; }
+"fall_transition"                   { return token::FALL_TRANSITION; }
+"rise_transition"                   { return token::RISE_TRANSITION; }
+"fall_constraint"                   { return token::FALL_CONSTRAINT; }
+"rise_constraint"                   { return token::RISE_CONSTRAINT; }
+"when"                              { return token::WHEN; }
+"sdf_cond"                          { return token::SDF_COND; }
+"capacitance"                       { return token::CAPACITANCE; }
+"fall_capacitance"                  { return token::FALL_CAPACITANCE; }
+"rise_capacitance"                  { return token::RISE_CAPACITANCE; }
+"fall_capacitance_range"            { return token::FALL_CAPACITANCE_RANGE; }
+"rise_capacitance_range"            { return token::RISE_CAPACITANCE_RANGE; }
+"values"                            { return token::VALUES; }
 
 {L}({L}|{D})*                       { YY_SAVE_TOKEN; return token::IDENTIFIER; }
 ({SP}?\"([^"\\\n]|{ES})*\"{WS}*)+   { YY_SAVE_TOKEN; return token::STRING; }

@@ -1,4 +1,5 @@
 #include "circuit.h"
+#include "celllibrary.h"
 #include <iostream>
 #include <fstream>
 #include <sstream>
@@ -1321,7 +1322,19 @@ Circuit::Circuit()
     impl = 0;
 }
 
-CellLibrary defaultLibrary;
+Circuit::Circuit(const std::string &path)
+{
+    CellLibrary lib;
+    // Open a Verilog file
+    std::fstream infile(path.c_str());
+    if (!infile.good())
+    {
+        std::cerr << "Could not open file: " << path << std::endl;
+        impl = 0;
+        return;
+    }
+    load(infile, path, lib);
+}
 
 Circuit::Circuit(const std::string &path, CellLibrary &lib)
 {
@@ -1441,6 +1454,12 @@ static void handleOutputCallByOrder(Module &module, Gate &gate, const std::strin
     }
 }
 
+void Circuit::load(std::fstream &infile, const std::string &path)
+{
+    CellLibrary lib;
+    load(infile, path, lib);
+}
+
 void Circuit::load(std::fstream &infile, const std::string &path, CellLibrary &lib)
 {
     if (impl && impl->ref.deref())
@@ -1456,6 +1475,7 @@ void Circuit::load(std::fstream &infile, const std::string &path, CellLibrary &l
     bool result = driver.parse_stream(infile, path);
     if (!result || verilog.expressions.size() == 0)
     {
+        std::cerr << "Failed to parse" << std::endl;
         impl = 0;
         return;
     }

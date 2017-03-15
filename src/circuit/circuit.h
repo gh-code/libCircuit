@@ -251,53 +251,12 @@ private:
     friend class Circuit;
 };
 
-class CellLibrary
-{
-public:
-    CellLibrary()
-    {
-        Cell INV_X1("INV_X1");
-        INV_X1.addInputPinName("A");
-        INV_X1.addOutputPinName("ZN");
-        cells["INV_X1"] = INV_X1;
-
-        createTwoInputCell("NAND2_X1", "A1", "A2", "ZN");
-        createTwoInputCell( "AND2_X1", "A1", "A2", "ZN");
-        createTwoInputCell( "NOR2_X1", "A1", "A2", "ZN");
-        createTwoInputCell(  "OR2_X1", "A1", "A2", "ZN");
-        createTwoInputCell( "XOR2_X1", "A",  "B",  "Z");
-    }
-    void createTwoInputCell(const std::string &name, const std::string &a, const std::string &b, const std::string &out)
-    {
-        Cell cell(name);
-        cell.addInputPinName(a);
-        cell.addInputPinName(b);
-        cell.addOutputPinName(out);
-        cells[name] = cell;
-    }
-    inline bool hasCell(const std::string &type)
-    {
-        return (cells.find(type) != cells.end());
-    }
-    Cell cell(const std::string &type)
-    {
-        if (hasCell(type))
-            return cells[type].cloneNode().toCell();
-        return Cell();
-    }
-
-private:
-    // Circuit circuit;
-    std::map<std::string,Cell> cells;
-};
-
-extern CellLibrary defaultLibrary;
-
 class Circuit : public Node
 {
 public:
     Circuit();
-    explicit Circuit(const std::string &path, CellLibrary &lib = defaultLibrary);
+    explicit Circuit(const std::string &path);
+    Circuit(const std::string &path, CellLibrary &lib);
     Circuit(const Circuit&);
     Circuit& operator= (const Circuit&);
 
@@ -331,7 +290,8 @@ public:
     inline Cell createCell(const std::string &cellName, const std::string &type){ return topModule().createCell(cellName,type); }
     Module createModule(const std::string &name);
 
-    void load(std::fstream&, const std::string&, CellLibrary &lib = defaultLibrary);
+    void load(std::fstream&, const std::string&);
+    void load(std::fstream&, const std::string&, CellLibrary &lib);
 
     inline Node::NodeType nodeType() const { return CircuitNode; }
 

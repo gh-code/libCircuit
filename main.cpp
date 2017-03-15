@@ -1,4 +1,5 @@
 #include "circuit.h"
+#include "celllibrary.h"
 #include <iostream>
 #include <string>
 
@@ -43,6 +44,7 @@ int main(int argc, char *argv[])
         return 1;
     }
 
+    //CellLibrary library("NangateOpenCellLibrary_typical_conditional_nldm.lib");
     Circuit circuit(argv[1]);
 
     if (circuit.isNull())

@@ -4,9 +4,10 @@ TARGET = liberty
 HEADERS = driver.h parser.h scanner.h expression.h \
     y.tab.h location.hh position.hh stack.hh
 SOURCES = parser.cc scanner.cc driver.cc
-QMAKE_EXTRA_TARGETS += parser lexer distclean extraclean
+QMAKE_EXTRA_TARGETS += parser lexer clean distclean extraclean
 PRE_TARGETDEPS += parser.o scanner.o
 
+clean.depends = extraclean
 distclean.depends = extraclean
 win32: extraclean.commands =  del /f scanner.o scanner.cc position.hh parser.h parser.o parser.cc
 unix: extraclean.commands =  rm -f scanner.o scanner.cc position.hh parser.h parser.o parser.cc

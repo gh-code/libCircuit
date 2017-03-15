@@ -1,4 +1,5 @@
 TEMPLATE = subdirs
 CONFIG += ordered
 SUBDIRS += \
-    verilog
+    verilog \
+    liberty
