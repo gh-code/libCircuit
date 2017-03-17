@@ -143,10 +143,10 @@ public:
 
     void addCell(CellPrivate *);
 
-    bool hasPort(const std::string &portName);
-    bool hasWire(const std::string &wireName);
-    bool hasGate(const std::string &gateName);
-    bool hasCell(const std::string &cellName);
+    bool hasPort(const std::string &portName) const;
+    bool hasWire(const std::string &wireName) const;
+    bool hasGate(const std::string &gateName) const;
+    bool hasCell(const std::string &cellName) const;
 
     PortPrivate* port(const std::string &portName);
     WirePrivate* wire(const std::string &wireName);
@@ -668,6 +668,20 @@ bool Node::isCircuit() const
     return false;
 }
 
+Signal Node::value() const
+{
+    if (!impl)
+        return 0;
+    return IMPL->value;
+}
+
+void Node::setValue(Signal value)
+{
+    if (!impl)
+        return;
+    IMPL->value = value;
+}
+
 #undef IMPL
 
 /**************************************************************
@@ -877,6 +891,7 @@ CellPrivate::CellPrivate(CellPrivate* n, bool deep)
  {
      name = n->name;
      type = n->type;
+     area = n->area;
      pinTypes = n->pinTypes;
  }
 
@@ -1005,6 +1020,20 @@ Port::PortType Cell::pinType(size_t i) const
     return IMPL->pinType(i);
 }
 
+void Cell::setArea(double area)
+{
+    if (!impl)
+        return;
+    IMPL->area = area;
+}
+
+double Cell::area() const
+{
+    if (!impl)
+        return 0;
+    return IMPL->area;
+}
+
 #undef IMPL
 
 /**************************************************************
@@ -1059,6 +1088,26 @@ size_t ModulePrivate::gateCount() const
         return cells.size();
     else
         return 0;
+}
+
+bool ModulePrivate::hasPort(const std::string &name) const
+{
+    return (ports.find(name) != ports.end());
+}
+
+bool ModulePrivate::hasWire(const std::string &name) const
+{
+    return (wires.find(name) != wires.end());
+}
+
+bool ModulePrivate::hasGate(const std::string &name) const
+{
+    return (gates.find(name) != gates.end());
+}
+
+bool ModulePrivate::hasCell(const std::string &name) const
+{
+    return (cells.find(name) != cells.end());
 }
 
 PortPrivate* ModulePrivate::port(const std::string &portName)
@@ -1191,6 +1240,34 @@ size_t Module::cellSize() const
     if (!impl)
         return 0;
     return IMPL->cells.size();
+}
+
+bool Module::hasPort(const std::string &name) const
+{
+    if (!impl)
+        return false;
+    return IMPL->hasPort(name);
+}
+
+bool Module::hasWire(const std::string &name) const
+{
+    if (!impl)
+        return false;
+    return IMPL->hasWire(name);
+}
+
+bool Module::hasGate(const std::string &name) const
+{
+    if (!impl)
+        return false;
+    return IMPL->hasGate(name);
+}
+
+bool Module::hasCell(const std::string &name) const
+{
+    if (!impl)
+        return false;
+    return IMPL->hasCell(name);
 }
 
 Port Module::port(const std::string &portName) const
@@ -1397,11 +1474,86 @@ static void handlePortWireRange(const std::string &name, VNRange *range, void (*
     }
 }
 
-static void handleOtherExpr(Module &module, Gate &gate, const std::string &expr)
+static std::string generateWireName(const Module &module)
 {
+    // not reentrant
+    static int counter = 0;
+    std::string prefix = "__internal_wire_";
     (void) module;
-    (void) gate;
-    (void) expr;
+    // while (true) {
+        std::stringstream ss;
+        ss << prefix << counter;
+        std::string name = ss.str();
+        counter++;
+        // std::cout << "Generate wire: " << name << std::endl;
+        return name;
+    //     if (!module.hasWire(name))
+    //         return name;
+    // }
+}
+
+static void handleOtherExpr(Module &module, Gate &gate, const std::string &to, const std::string &expr)
+{
+    if (expr == "1'b0")
+    {
+        std::string wireName = generateWireName(module);
+        Wire wire = module.createWire(wireName);
+        wire.setValue(0);
+        gate.connect(to, wire);
+    }
+    else if (expr == "1'b1")
+    {
+        std::string wireName = generateWireName(module);
+        Wire wire = module.createWire(wireName);
+        wire.setValue(1);
+        gate.connect(to, wire);
+    }
+    else
+        std::cerr << "No port/wire can be connected: " << expr << std::endl;
+}
+
+static void handleInputOtherExpr(Module &module, Gate &gate, const std::string &expr, size_t *counter)
+{
+    if (expr == "1'b0")
+    {
+        std::string wireName = generateWireName(module);
+        Wire wire = module.createWire(wireName);
+        wire.setValue(0);
+        gate.connectInput((*counter), wire);
+        (*counter)++;
+    }
+    else if (expr == "1'b1")
+    {
+        std::string wireName = generateWireName(module);
+        Wire wire = module.createWire(wireName);
+        wire.setValue(1);
+        gate.connectInput((*counter), wire);
+        (*counter)++;
+    }
+    else
+        std::cerr << "No port/wire can be connected: " << expr << std::endl;
+}
+
+static void handleOutputOtherExpr(Module &module, Gate &gate, const std::string &expr, size_t *counter)
+{
+    if (expr == "1'b0")
+    {
+        std::string wireName = generateWireName(module);
+        Wire wire = module.createWire(wireName);
+        wire.setValue(0);
+        gate.connectOutput((*counter), wire);
+        (*counter)++;
+    }
+    else if (expr == "1'b1")
+    {
+        std::string wireName = generateWireName(module);
+        Wire wire = module.createWire(wireName);
+        wire.setValue(1);
+        gate.connectOutput((*counter), wire);
+        (*counter)++;
+    }
+    else
+        std::cerr << "No port/wire can be connected: " << expr << std::endl;
 }
 
 static void handleInputCallByOrder(Module &module, Gate &gate, const std::string &from, size_t *counter)
@@ -1417,9 +1569,7 @@ static void handleInputCallByOrder(Module &module, Gate &gate, const std::string
         }
         else
         {
-            // TODO Handle literal like 1'b0, 1'b1
-            handleOtherExpr(module, gate, from);
-            std::cerr << "No port/wire can be connected: " << from << std::endl;
+            handleInputOtherExpr(module, gate, from, counter);
         }
     }
     else
@@ -1442,9 +1592,7 @@ static void handleOutputCallByOrder(Module &module, Gate &gate, const std::strin
         }
         else
         {
-            // TODO Handle literal like 1'b0, 1'b1
-            handleOtherExpr(module, gate, from);
-            std::cerr << "No port/wire can be connected: " << from << std::endl;
+            handleOutputOtherExpr(module, gate, from, counter);
         }
     }
     else
@@ -1676,6 +1824,7 @@ void Circuit::load(std::fstream &infile, const std::string &path, CellLibrary &l
                 {
                     std::string to = inst->conn(k)->to();
                     std::string from = inst->conn(k)->from();
+                    // Call by order
                     if (to == "")
                     {
 #ifdef DEBUG
@@ -1699,22 +1848,20 @@ void Circuit::load(std::fstream &infile, const std::string &path, CellLibrary &l
                         else
                             std::cout << "Don't known how to connect '" << k << "' and '" << from << "'" << std::endl;
                     }
-                    else
+                    else // Call by name
                     {
-                        Wire w = module.wire(from);
-                        if (w.isNull())
+                        Port p = module.port(from);
+                        if (p.isNull())
                         {
-                            Port p = module.port(from);
-                            if (!p.isNull())
-                                cell.connect(to, p);
+                            Wire w = module.wire(from);
+                            if (!w.isNull())
+                                cell.connect(to, w);
                             else
                             {
-                                // TODO Handle literal like 1'b0, 1'b1
-                                handleOtherExpr(module, cell, from);
-                                std::cerr << "No port/wire can be connected" << std::endl;
+                                handleOtherExpr(module, cell, to, from);
                             }
                         }
-                        else { cell.connect(to, w); }
+                        else { cell.connect(to, p); }
                     }
                 }
                 module.addCell(cell);

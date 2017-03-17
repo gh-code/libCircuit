@@ -101,7 +101,10 @@ bool CellLibraryPrivate::load(std::fstream &infile, const std::string &path)
     for (it = liberty.cells.begin(); it != liberty.cells.end(); ++it)
     {
         LNCell tmp_cell = it->second;
+
         Cell cell(tmp_cell.name);
+        cell.setArea(tmp_cell.area);
+
         for (size_t i = 0; i < tmp_cell.pins.size(); i++)
         {
             LNPin *pin = tmp_cell.pins[i];
@@ -110,14 +113,12 @@ bool CellLibraryPrivate::load(std::fstream &infile, const std::string &path)
             else if (pin->direction == "output")
                 cell.addOutputPinName(pin->name);
             else if (pin->direction == "internal")
-            {
-                // do nothing
-            }
+            { /* do nothing */ }
             else
             {
-                std::cerr << "WARNING: something went wrong: ";
-                std::cerr << tmp_cell.name << ":" << pin->name << "'s pin direction is ";
-                std::cerr << pin->direction << std::endl;
+                std::cerr << "WARNING: something went wrong: "
+                          << tmp_cell.name << ":" << pin->name << "'s "
+                          << "pin direction is " << pin->direction << std::endl;
             }
         }
         cells[tmp_cell.name] = cell;

@@ -87,6 +87,9 @@ public:
     Module toModule() const;
     Circuit toCircuit() const;
 
+    Signal value() const;
+    void setValue(Signal value);
+
 protected:
     NodePrivate* impl;
     Node(NodePrivate*);
@@ -193,6 +196,8 @@ public:
     void addOutputPinName(const std::string&);
     Port::PortType pinType(size_t) const;
 
+    void setArea(double);
+
     // Overridden from Node
     inline Node::NodeType nodeType() const { return CellNode; }
 
@@ -226,6 +231,11 @@ public:
     size_t wireSize() const;
     size_t gateSize() const;
     size_t cellSize() const;
+
+    bool hasPort(const std::string&) const;
+    bool hasWire(const std::string&) const;
+    bool hasGate(const std::string&) const;
+    bool hasCell(const std::string&) const;
 
     Port port(const std::string&) const;
     Wire wire(const std::string&) const;
