@@ -163,6 +163,8 @@ public:
 
     std::string name() const;
     Gate setName(const std::string &name);
+    int level() const;
+    void setLevel(int level); 
     Gate::GateType gateType() const;
 
     // Overridden from Node

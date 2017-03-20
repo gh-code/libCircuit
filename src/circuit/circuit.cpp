@@ -79,6 +79,8 @@ public:
     ~PortPrivate();
 
     Port::PortType type;
+    // Reimplemented from NodePrivate
+    Node::NodeType nodeType() const { return Node::PortNode; }
 };
 
 class WirePrivate : public NodePrivate
@@ -90,7 +92,7 @@ public:
 
     // Reimplemented from NodePrivate
     NodePrivate* cloneNode(bool deep = true);
-    Node::NodeType nodeType() const { return Node::GateNode; }
+    Node::NodeType nodeType() const { return Node::WireNode; }
 };
 
 class GatePrivate : public NodePrivate
@@ -106,6 +108,7 @@ public:
     NodePrivate* cloneNode(bool deep = true);
     Node::NodeType nodeType() const { return Node::GateNode; }
 
+    unsigned level;
     Gate::GateType type;
 };
 
@@ -813,14 +816,14 @@ Wire& Wire::operator=(const Wire &x)
  **************************************************************/
 
 GatePrivate::GatePrivate(GatePrivate* n, bool deep)
-    : NodePrivate(n, deep)
+    : NodePrivate(n, deep), level(0)
 {
     name = n->name;
     type = n->type;
 }
 
 GatePrivate::GatePrivate(CircuitPrivate *c, NodePrivate* p, const std::string &name_, Gate::GateType type_)
-    : NodePrivate(c, p)
+    : NodePrivate(c, p), level(0)
 {
     name = name_;
     type = type_;
@@ -869,6 +872,20 @@ Gate::Gate(GatePrivate *x)
 Gate& Gate::operator=(const Gate &x)
 {
     return (Gate&) Node::operator=(x);
+}
+
+int Gate::level() const
+{
+    if (!impl)
+        return -1;
+    return IMPL->level;
+}
+
+void Gate::setLevel(int level)
+{
+    if (!impl)
+        return ;
+    IMPL->level = level;
 }
 
 Gate::GateType Gate::gateType() const
