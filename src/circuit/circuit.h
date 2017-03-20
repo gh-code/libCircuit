@@ -101,6 +101,8 @@ public:
     enum PortType {
         Input   = 1,
         Output  = 2,
+        PPI     = 3,
+        PPO     = 4,
         BasePort = 11,
     };
     Port();
@@ -224,13 +226,23 @@ public:
     bool input(Pattern &pattern);
     bool output(Pattern &pattern);
 
-    Port inputPort(size_t i) const;
-    Port outputPort(size_t i) const;
+    Port PI(size_t i) const;  // exclude PPIs
+    Port PO(size_t i) const;  // exclude PPOs
+    Port PPI(size_t i) const;
+    Port PPO(size_t i) const;
+    Port inputPort(size_t i) const;  // include PPIs
+    Port outputPort(size_t i) const; // include PPOs
 
+    size_t PISize() const;
+    size_t POSize() const;
+    size_t PPISize() const;
+    size_t PPOSize() const;
+    // size_t inputSize() const;  // inherits Node
+    // size_t outputSize() const; // inherits Node
     size_t portSize() const;
     size_t wireSize() const;
-    size_t gateSize() const;
-    size_t cellSize() const;
+    size_t gateSize() const; // see gateCount()
+    size_t cellSize() const; // see gateCount()
 
     bool hasPort(const std::string&) const;
     bool hasWire(const std::string&) const;
@@ -242,7 +254,7 @@ public:
     Gate gate(const std::string&) const;
     Cell cell(const std::string&) const;
 
-    size_t gateCount() const;
+    size_t gateCount() const; // return gateSize() or cellSize() if present
     inline size_t size() const { return gateCount(); }
 
     void addCell(Cell &cell);
@@ -365,6 +377,8 @@ inline const char * type_str(Port::PortType type)
     {
         case Port::Input:       return "Input";
         case Port::Output:      return "Output";
+        case Port::PPI:         return "PPI";
+        case Port::PPO:         return "PPO";
         case Port::BasePort:    return "BasePort";
     }
     return 0;
