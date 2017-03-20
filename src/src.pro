@@ -2,7 +2,8 @@ TEMPLATE = subdirs
 SUBDIRS += \
     verilogparser \
     libertyparser \
-    circuit
+    circuit \
+    EDAUtils
 
 circuit.subdir = circuit
 verilogparser.subdir = parser/verilog
