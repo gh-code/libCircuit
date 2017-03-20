@@ -14,7 +14,12 @@ void forward(const Node &node)
 {
     static int level = 0;
     string spaces(2 * level, ' ');
-    cout << spaces << node.nodeName() << endl;
+    cout << spaces << node.nodeName();
+    if (node.isGate())
+        cout << " (" << type_str(node.toGate().gateType()) << ")";
+    if (node.isCell())
+        cout << " (" << type_str(node.toCell().gateType()) << ")";
+    cout << endl;
     for (size_t i = 0; i < node.outputSize(); i++)
     {
         level++;
@@ -27,7 +32,13 @@ void backward(const Node &node)
 {
     static int level = 0;
     string spaces(2 * level, ' ');
-    cout << spaces << node.nodeName() << endl;
+    cout << spaces << node.nodeName();
+    if (node.isGate())
+        cout << " (" << type_str(node.toGate().gateType()) << ")";
+    if (node.isCell())
+        cout << " (" << type_str(node.toCell().gateType()) << ")";
+    cout << endl;
+
     for (size_t i = 0; i < node.inputSize(); i++)
     {
         level++;

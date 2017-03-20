@@ -19,7 +19,6 @@ public:
 
     bool load(std::fstream&, const std::string &path);
 
-    QAtomicInt ref;
 
     std::string name;
     std::string time_unit;
@@ -32,7 +31,11 @@ public:
     double nom_temperature;
     double nom_voltage;
 
+    bool isDefault;
+
     std::map<std::string,Cell> cells;
+
+    QAtomicInt ref;
 };
 
 /**************************************************************
@@ -41,7 +44,7 @@ public:
  *
  **************************************************************/
 
-CellLibraryPrivate::CellLibraryPrivate()
+CellLibraryPrivate::CellLibraryPrivate() : isDefault(true)
 {
     Cell INV_X1("INV_X1");
     INV_X1.addInputPinName("A");
@@ -55,7 +58,7 @@ CellLibraryPrivate::CellLibraryPrivate()
     createTwoInputCell( "XOR2_X1", "A",  "B",  "Z");
 }
 
-CellLibraryPrivate::CellLibraryPrivate(const std::string &path)
+CellLibraryPrivate::CellLibraryPrivate(const std::string &path) : isDefault(false)
 {
     // Open a Liberty file
     std::fstream infile(path.c_str());
@@ -320,6 +323,11 @@ double CellLibrary::nom_voltage() const
     if (!impl)
         return 0.0;
     return impl->nom_voltage;
+}
+
+bool CellLibrary::isDefault() const
+{
+    return impl->isDefault;
 }
 
 bool CellLibrary::isNull() const

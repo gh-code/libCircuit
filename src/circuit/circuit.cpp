@@ -146,6 +146,11 @@ public:
 
     void addCell(CellPrivate *);
 
+    PortPrivate *PI(size_t);
+    PortPrivate *PO(size_t);
+    PortPrivate *PPI(size_t);
+    PortPrivate *PPO(size_t);
+
     bool hasPort(const std::string &portName) const;
     bool hasWire(const std::string &wireName) const;
     bool hasGate(const std::string &gateName) const;
@@ -165,6 +170,15 @@ public:
     std::map<std::string,WirePrivate*> wires;
     std::map<std::string,CellPrivate*> cells;
     std::map<std::string,GatePrivate*> gates;
+
+    std::map<std::string,PortPrivate*> PIs;
+    std::map<std::string,PortPrivate*> POs;
+    std::map<std::string,PortPrivate*> PPIs;
+    std::map<std::string,PortPrivate*> PPOs;
+    std::vector<std::string> PINames;
+    std::vector<std::string> PONames;
+    std::vector<std::string> PPINames;
+    std::vector<std::string> PPONames;
 };
 
 class CircuitPrivate : public NodePrivate
@@ -912,8 +926,32 @@ CellPrivate::CellPrivate(CellPrivate* n, bool deep)
      pinTypes = n->pinTypes;
  }
 
+static Gate::GateType toGateType(const std::string &type)
+{
+    std::string typeLower(type);
+    std::transform(typeLower.begin(), typeLower.end(), typeLower.begin(), ::tolower);
+    if (typeLower.substr(0, 3) == "inv")
+        return Gate::INV;
+    else if (typeLower.substr(0, 3) == "buf")
+        return Gate::BUF;
+    else if (typeLower.substr(0, 4) == "nand")
+        return Gate::NAND;
+    else if (typeLower.substr(0, 3) == "and")
+        return Gate::AND;
+    else if (typeLower.substr(0, 3) == "nor")
+        return Gate::NOR;
+    else if (typeLower.substr(0, 2) == "or")
+        return Gate::OR;
+    else if (typeLower.substr(0, 4) == "xnor")
+        return Gate::XNOR;
+    else if (typeLower.substr(0, 3) == "xor")
+        return Gate::XOR;
+    else 
+        return Gate::CustomGate;
+}
+
 CellPrivate::CellPrivate(CircuitPrivate *c, NodePrivate* p, const std::string &name_, const std::string &type_)
-    : GatePrivate(c, p, name, Gate::CustomGate)
+    : GatePrivate(c, p, name, toGateType(type_))
 {
     name = name_;
     type = type_;
@@ -1086,6 +1124,7 @@ static void deleteNameMap(std::map<std::string,T*> &nm)
 
 ModulePrivate::~ModulePrivate()
 {
+    // Don't delete PIs, POs, PPIs and PPOs
     deleteNameMap(ports);
     deleteNameMap(wires);
     deleteNameMap(cells);
@@ -1125,6 +1164,26 @@ bool ModulePrivate::hasGate(const std::string &name) const
 bool ModulePrivate::hasCell(const std::string &name) const
 {
     return (cells.find(name) != cells.end());
+}
+
+PortPrivate* ModulePrivate::PI(size_t i)
+{
+    return PIs[PINames[i]];
+}
+
+PortPrivate* ModulePrivate::PO(size_t i)
+{
+    return POs[PONames[i]];
+}
+
+PortPrivate* ModulePrivate::PPI(size_t i)
+{
+    return PPIs[PPINames[i]];
+}
+
+PortPrivate* ModulePrivate::PPO(size_t i)
+{
+    return PPOs[PPONames[i]];
 }
 
 PortPrivate* ModulePrivate::port(const std::string &portName)
@@ -1175,8 +1234,10 @@ PortPrivate* ModulePrivate::createPort(const std::string &portName, Port::PortTy
     PortPrivate *p = new PortPrivate((CircuitPrivate*)this->ownerNode, this, portName, type);
     switch (type)
     {
-        case Port::Input:  addInput(p);  break;
-        case Port::Output: addOutput(p); break;
+        case Port::Input:  addInput(p);  PIs[portName] = p;  break;
+        case Port::Output: addOutput(p); POs[portName] = p;  break;
+        case Port::PPI:    addInput(p);  PPIs[portName] = p; PPINames.push_back(portName); break;
+        case Port::PPO:    addOutput(p); PPOs[portName] = p; PPONames.push_back(portName); break;
         default:
             return 0;
     }
@@ -1217,6 +1278,34 @@ Module::Module(ModulePrivate *x)
 {
 }
 
+Port Module::PI(size_t i) const
+{
+    if (!impl)
+        return Port();
+    return Port(IMPL->PI(i));
+}
+
+Port Module::PO(size_t i) const
+{
+    if (!impl)
+        return Port();
+    return Port(IMPL->PO(i));
+}
+
+Port Module::PPI(size_t i) const
+{
+    if (!impl)
+        return Port();
+    return Port(IMPL->PPI(i));
+}
+
+Port Module::PPO(size_t i) const
+{
+    if (!impl)
+        return Port();
+    return Port(IMPL->PPO(i));
+}
+
 Port Module::inputPort(size_t i) const
 {
     if (!impl)
@@ -1236,6 +1325,34 @@ size_t Module::gateCount() const
     if (!impl)
         return 0;
     return IMPL->gateCount();
+}
+
+size_t Module::PISize() const
+{
+    if (!impl)
+        return 0;
+    return IMPL->PIs.size();
+}
+
+size_t Module::POSize() const
+{
+    if (!impl)
+        return 0;
+    return IMPL->POs.size();
+}
+
+size_t Module::PPISize() const
+{
+    if (!impl)
+        return 0;
+    return IMPL->PPIs.size();
+}
+
+size_t Module::PPOSize() const
+{
+    if (!impl)
+        return 0;
+    return IMPL->PPOs.size();
 }
 
 size_t Module::wireSize() const
@@ -1497,16 +1614,12 @@ static std::string generateWireName(const Module &module)
     static int counter = 0;
     std::string prefix = "__internal_wire_";
     (void) module;
-    // while (true) {
-        std::stringstream ss;
-        ss << prefix << counter;
-        std::string name = ss.str();
-        counter++;
-        // std::cout << "Generate wire: " << name << std::endl;
-        return name;
-    //     if (!module.hasWire(name))
-    //         return name;
-    // }
+    std::stringstream ss;
+    ss << prefix << counter;
+    std::string name = ss.str();
+    counter++;
+    // std::cout << "Generate wire: " << name << std::endl;
+    return name;
 }
 
 static void handleOtherExpr(Module &module, Gate &gate, const std::string &to, const std::string &expr)
@@ -1649,6 +1762,11 @@ void Circuit::load(std::fstream &infile, const std::string &path, CellLibrary &l
     VNModule *topModule = ((VNModule*)(verilog.expressions[0]));
     impl = new CircuitPrivate(topModule->name());
 
+    if (topModule->gateInstSize() > 0 && !lib.isDefault())
+    {
+        std::cerr << "Warning: Cell Library is given but not used" << std::endl;
+    }
+
     // TODO implement it
     if (verilog.expressions.size() > 1)
     {
@@ -1771,7 +1889,6 @@ void Circuit::load(std::fstream &infile, const std::string &path, CellLibrary &l
         }
 
         // Gate instance in the module
-        // TODO
         for (size_t i = 0; i < vmodule->gateInstSize(); i++)
         {
             VNGateInst *gInst = vmodule->gateInst(i);

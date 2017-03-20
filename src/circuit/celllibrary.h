@@ -35,6 +35,7 @@ public:
     bool hasCell(const std::string &type) const;
     Cell cell(const std::string &type) const;
 
+    bool isDefault() const;
     bool isNull() const;
 
     bool load(std::fstream &infile, const std::string &path);
