@@ -26,6 +26,28 @@ Run:
 $ ./circuit c17.v
 ```
 
+## Integrate into your project
+
+```sh
+$ cp -r libCircuit/include/ libCircuit/lib/ your_project/
+$ cd your_project/
+```
+
+Assume there's a main.cpp in your_project directory.
+Add a line at the top of main.cpp
+```c++
+#include <circuit.h>
+```
+
+Compile your Qt program by simply adding
+```
+-I./include -L./lib -lCircuit
+```
+For example
+```sh
+$ g++ -std=c++11 -o main main.cpp -L/opt/Qt/5.8/gcc_64/lib -lQt5Core -I./include -L./lib -lCircuit
+```
+
 ## Examples
 
 Check circuit is created successfully

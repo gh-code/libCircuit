@@ -1,3 +1,4 @@
+// DEPRECATED, see ../src.pro
 include( ../common.pri )
 TEMPLATE = lib
 TARGET = EDAUtils
