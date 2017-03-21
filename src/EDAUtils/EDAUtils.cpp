@@ -5,7 +5,7 @@
 
 using namespace std;
 
-unsigned EDAUtils::levelize(const Circuit &circuit, std::vector<Node*> &nodes)
+void EDAUtils::levelize(const Circuit &circuit)
 {
     cout << "Call EDAUtils::levelize()" << endl;
 
@@ -113,11 +113,31 @@ unsigned EDAUtils::levelize(const Circuit &circuit, std::vector<Node*> &nodes)
                     Queue.push_back(new Gate(outg));
             }
         }
-
     }
-
-    
-     
-    return 0;
 }
 
+static 
+bool _compare_gates(const Gate &gate1, const Gate &gate2)
+{
+    return gate1.level() < gate2.level();
+}
+void EDAUtils::orderGateByLevel(const Circuit &circuit, std::vector<Gate> &gates)
+{
+    levelize(circuit);
+    for(size_t idx = 0; idx < circuit.topModule().gateSize(); idx++)
+        gates.push_back(circuit.topModule().gate(idx));
+    std::sort(gates.begin(), gates.end(), _compare_gates);
+}
+
+static
+bool _compare_cells(const Cell &cell1, const Cell &cell2)
+{
+    return cell1.level() < cell2.level();
+}
+void EDAUtils::orderCellByLevel(const Circuit &circuit, std::vector<Cell> &cells)
+{
+    levelize(circuit);
+    for(size_t idx = 0; idx < circuit.topModule().cellSize(); idx++)
+        cells.push_back(circuit.topModule().cell(idx));
+    std::sort(cells.begin(), cells.end(), _compare_cells);
+}

@@ -7,7 +7,9 @@
 class EDAUtils
 {
     public:
-        static unsigned levelize(const Circuit &, std::vector<Node*> &);
+        static void levelize(const Circuit &);
+        static void orderGateByLevel(const Circuit &, std::vector<Gate> &);
+        static void orderCellByLevel(const Circuit &, std::vector<Cell> &);
 };
 
 #endif

@@ -95,8 +95,8 @@ int main(int argc, char *argv[])
     printCircuitInfo(circuit);
     cout << std::string(79, '-') << endl;
 
-    vector<Node*> temp;
-    EDAUtils::levelize(circuit, temp);
+    vector<Cell> temp;
+    EDAUtils::orderCellByLevel(circuit, temp);
 
     for (size_t i = 0; i < circuit.outputSize(); i++)
         backward(circuit.outputPort(i));
