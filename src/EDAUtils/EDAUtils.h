@@ -7,8 +7,7 @@
 class EDAUtils
 {
     public:
-        static unsigned levelizeCell(const Circuit &, std::vector<Cell*> &);
-        static unsigned levelizeGate(const Circuit &, std::vector<Cell*> &);
+        static unsigned levelize(const Circuit &, std::vector<Node*> &);
 };
 
 #endif
