@@ -49,11 +49,11 @@ void backward(const Node &node)
 
 void printCircuitInfo(const Circuit &circuit)
 {
-    cout << "Circuit: " << circuit.name() << endl;
-    cout << "#input: " << circuit.inputSize() << endl;
-    cout << "#output: " << circuit.outputSize() << endl;
-    cout << "Modules: ";
-    cout << circuit.moduleSize() << endl;
+    cout << " circuit: " << circuit.name() << endl;
+    cout << " #inputs: " << circuit.inputSize() << endl;
+    cout << "#outputs: " << circuit.outputSize() << endl;
+    cout << "  #gates: " << circuit.gateCount() << endl;
+    cout << "#modules: " << circuit.moduleSize() << endl;
 }
 
 void printCellLibraryInfo(const CellLibrary &library)
@@ -82,23 +82,23 @@ int main(int argc, char *argv[])
     CellLibrary library("NangateOpenCellLibrary_typical_conditional_nldm.lib");
     Circuit circuit(argv[1], library);
 
-    cout << std::string(79, '-') << endl;
-    printCellLibraryInfo(library);
-    cout << std::string(79, '-') << endl;
-    printCircuitInfo(circuit);
-    cout << std::string(79, '-') << endl;
-
     if (circuit.isNull())
     {
         cout << "Circuit is empty\n";
         return 1;
     }
 
+    cout << std::string(79, '-') << endl;
+    printCellLibraryInfo(library);
+    cout << std::string(79, '-') << endl;
+    printCircuitInfo(circuit);
+    cout << std::string(79, '-') << endl;
+
     for (size_t i = 0; i < circuit.outputSize(); i++)
         backward(circuit.outputPort(i));
     for (size_t i = 0; i < circuit.inputSize(); i++)
         forward(circuit.inputPort(i));
-        
+
     // for (size_t i = 0; i < circuit.moduleSize(); i++)
     //     cout << circuit.module(i).name() << " ";
     // cout << endl;
