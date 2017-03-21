@@ -104,6 +104,8 @@ public:
 
     Gate::GateType gateType() const { return type; }
 
+    void setName(const std::string &name);
+
     // Reimplemented from NodePrivate
     NodePrivate* cloneNode(bool deep = true);
     Node::NodeType nodeType() const { return Node::GateNode; }
@@ -121,7 +123,6 @@ public:
 
     std::string cellType() const { return type; }
 
-    void setName(const std::string &name);
     void addInputPinName(const std::string &pinName);
     void addOutputPinName(const std::string &pinName);
     Port::PortType pinType(size_t i) const;
@@ -855,6 +856,11 @@ NodePrivate* GatePrivate::cloneNode(bool deep)
     return p;
 }
 
+void GatePrivate::setName(const std::string &name_)
+{
+    name = name_;
+}
+
 /**************************************************************
  *
  * Gate
@@ -886,6 +892,20 @@ Gate::Gate(GatePrivate *x)
 Gate& Gate::operator=(const Gate &x)
 {
     return (Gate&) Node::operator=(x);
+}
+
+// std::string Gate::name() const
+// {
+//     if (!impl)
+//         return std::string();
+//     return IMPL->nodeName();
+// }
+
+void Gate::setName(const std::string &name)
+{
+    if (!impl)
+        return;
+    IMPL->setName(name);
 }
 
 int Gate::level() const
@@ -969,11 +989,6 @@ NodePrivate* CellPrivate::cloneNode(bool deep)
     return p;
 }
 
-void CellPrivate::setName(const std::string &name_)
-{
-    name = name_;
-}
-
 void CellPrivate::addOutputPinName(const std::string &pinName)
 {
     NodePrivate::addOutputPinName(pinName);
@@ -1030,21 +1045,6 @@ Cell::Cell(CellPrivate *x)
 Cell& Cell::operator=(const Cell &x)
 {
     return (Cell&) Gate::operator=(x);
-}
-
-std::string Cell::name() const
-{
-    if (!impl)
-        return std::string();
-    return IMPL->nodeName();
-}
-
-Cell Cell::setName(const std::string &name)
-{
-    if (!impl)
-        return Cell();
-    IMPL->setName(name);
-    return Cell(IMPL);
 }
 
 std::string Cell::type() const

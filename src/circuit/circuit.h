@@ -163,8 +163,8 @@ public:
     Gate(const Gate&);
     Gate& operator= (const Gate&);
 
-    std::string name() const;
-    Gate setName(const std::string &name);
+    inline std::string name() const { return nodeName(); }
+    void setName(const std::string &name);
     int level() const;
     void setLevel(int level); 
     Gate::GateType gateType() const;
@@ -189,8 +189,6 @@ public:
     Cell(const Cell&);
     Cell& operator= (const Cell&);
 
-    std::string name() const;
-    Cell setName(const std::string &name);
     std::string type() const;
     double area() const;
     double delay() const;
