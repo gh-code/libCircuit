@@ -4,6 +4,12 @@ libCircuit is a C++ Library for EDA software development
 
 *WARNING: Alpha version is not suitable for practical usage*
 
+## Features
+* Support Verilog circuit format (*.v)
+* Support Liberty format (*.lib)
+* Simple to use
+* Easy to compile
+
 ## Requirement
 * Qt 5.8 (Untested on lower version but it may be fine)
 * Bison and Flex
@@ -57,6 +63,18 @@ if (!circuit.isNull())
 {
     // You can use circuit now
 }
+```
+
+If circuit is synthesized, Cell Library has to be considered
+```C++
+CellLibrary library("NangateOpenCellLibrary_typical_conditional.lib");
+Circuit circuit("c17_syn.v", library);
+if (circuit.isNull())
+{
+    cerr << "Fail to load the circuit" << endl;
+    return 1;
+}
+// You can use circuit now
 ```
 
 Print circuit information
