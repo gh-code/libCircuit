@@ -157,6 +157,10 @@ public:
     bool hasGate(const std::string &gateName) const;
     bool hasCell(const std::string &cellName) const;
 
+    PortPrivate* port(size_t i);
+    WirePrivate* wire(size_t i);
+    GatePrivate* gate(size_t i);
+    CellPrivate* cell(size_t i);
     PortPrivate* port(const std::string &portName);
     WirePrivate* wire(const std::string &wireName);
     GatePrivate* gate(const std::string &gateName);
@@ -171,6 +175,10 @@ public:
     std::map<std::string,WirePrivate*> wires;
     std::map<std::string,CellPrivate*> cells;
     std::map<std::string,GatePrivate*> gates;
+    std::vector<std::string> portNames;
+    std::vector<std::string> wireNames;
+    std::vector<std::string> cellNames;
+    std::vector<std::string> gateNames;
 
     std::map<std::string,PortPrivate*> PIs;
     std::map<std::string,PortPrivate*> POs;
@@ -1187,6 +1195,26 @@ PortPrivate* ModulePrivate::PPO(size_t i)
     return PPOs[PPONames[i]];
 }
 
+PortPrivate* ModulePrivate::port(size_t i)
+{
+    return ports[portNames[i]];
+}
+
+WirePrivate* ModulePrivate::wire(size_t i)
+{
+    return wires[wireNames[i]];
+}
+
+GatePrivate* ModulePrivate::gate(size_t i)
+{
+    return gates[gateNames[i]];
+}
+
+CellPrivate* ModulePrivate::cell(size_t i)
+{
+    return cells[cellNames[i]];
+}
+
 PortPrivate* ModulePrivate::port(const std::string &portName)
 {
     return ports[portName];
@@ -1214,6 +1242,7 @@ void ModulePrivate::addCell(CellPrivate *cell)
     cell->setOwnerCircuit(this->ownerCircuit());
     cell->setParent(this);
     cell->ref.ref();
+    cellNames.push_back(cell->name);
     cells[cell->name] = cell;
 }
 
@@ -1224,6 +1253,7 @@ WirePrivate* ModulePrivate::createWire(const std::string &wireName)
         std::cerr << "WARNING: Duplicate create wire: " << wireName << std::endl;
     WirePrivate *w = new WirePrivate((CircuitPrivate*)this->ownerNode, this, wireName);
     // w->ref.deref();
+    wireNames.push_back(wireName);
     wires[wireName] = w;
     return w;
 }
@@ -1253,6 +1283,7 @@ GatePrivate* ModulePrivate::createGate(const std::string &gateName, Gate::GateTy
         std::cerr << "WARNING: Duplicate create wire: " << gateName << std::endl;
     GatePrivate *w = new GatePrivate((CircuitPrivate*)this->ownerNode, this, gateName, type);
     // w->ref.deref();
+    gateNames.push_back(gateName);
     gates[gateName] = w;
     return w;
 }
@@ -1403,6 +1434,34 @@ bool Module::hasCell(const std::string &name) const
     if (!impl)
         return false;
     return IMPL->hasCell(name);
+}
+
+Port Module::port(size_t i) const
+{
+    if (!impl)
+        return Port();
+    return Port(IMPL->port(i));
+}
+
+Wire Module::wire(size_t i) const
+{
+    if (!impl)
+        return Wire();
+    return Wire(IMPL->wire(i));
+}
+
+Gate Module::gate(size_t i) const
+{
+    if (!impl)
+        return Gate();
+    return Gate(IMPL->gate(i));
+}
+
+Cell Module::cell(size_t i) const
+{
+    if (!impl)
+        return Cell();
+    return Cell(IMPL->cell(i));
 }
 
 Port Module::port(const std::string &portName) const

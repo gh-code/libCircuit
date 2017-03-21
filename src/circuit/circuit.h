@@ -249,6 +249,10 @@ public:
     bool hasGate(const std::string&) const;
     bool hasCell(const std::string&) const;
 
+    Port port(size_t i) const;
+    Wire wire(size_t i) const;
+    Gate gate(size_t i) const;
+    Cell cell(size_t i) const;
     Port port(const std::string&) const;
     Wire wire(const std::string&) const;
     Gate gate(const std::string&) const;
