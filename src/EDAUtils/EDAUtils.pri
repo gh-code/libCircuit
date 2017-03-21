@@ -1,2 +1,2 @@
-HEADERS += EDAUtils.h
-SOURCES += EDAUtils.cpp
+HEADERS += $$PWD/EDAUtils.h
+SOURCES += $$PWD/EDAUtils.cpp
