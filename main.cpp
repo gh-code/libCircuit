@@ -96,13 +96,30 @@ int main(int argc, char *argv[])
     cout << std::string(79, '-') << endl;
 
     vector<Cell> temp;
-    EDAUtils::orderCellByLevel(circuit, temp);
-
+    EDAUtils::orderByLevel(circuit, temp);
+    for(size_t i = 0; i < circuit.topModule().gateSize(); i++)
+    {
+        Gate c = circuit.topModule().gate(i);
+        cout << "Cell: " << c.name() << "  ";
+        cout << "inputSize: " << c.inputSize() << endl;
+        cout << "outputSize: " << c.outputSize() << endl;
+        cout << "(" << c.level() << ")" << endl;
+    }
+    for(size_t i = 0; i < circuit.topModule().cellSize(); i++)
+    {
+        Cell c = circuit.topModule().cell(i);
+        cout << "Cell: " << c.name() << "  ";
+        cout << "inputSize: " << c.inputSize() << endl;
+        cout << "outputSize: " << c.outputSize() << endl;
+        cout << "(" << c.level() << ")" << endl;
+    }
     for (size_t i = 0; i < circuit.outputSize(); i++)
         backward(circuit.outputPort(i));
     for (size_t i = 0; i < circuit.inputSize(); i++)
         forward(circuit.inputPort(i));
 
+    /* cout << circuit.topModule().cell("reg_2").inputSize() << endl; */
+    /* cout << circuit.topModule().cell("reg_2").outputSize() << endl; */
     // for (size_t i = 0; i < circuit.moduleSize(); i++)
     //     cout << circuit.module(i).name() << " ";
     // cout << endl;

@@ -11,6 +11,60 @@ void EDAUtils::levelize(const Circuit &circuit)
 
     list<Node*> Queue;
     map<string, unsigned> count_map;
+    
+    for(size_t c_idx = 0; c_idx < circuit.topModule().cellSize(); c_idx++)
+    {
+        Cell cell = circuit.topModule().cell(c_idx);
+        for(size_t p_idx = 0; p_idx < cell.inputSize(); p_idx++)
+        {
+            Node node = cell.input(p_idx);
+            if(node.isWire())
+            {
+                Wire w = node.toWire();
+                for(size_t w_idx = 0; w_idx < w.inputSize(); w_idx++) // one input
+                {
+                    Node nodew = w.input(w_idx);
+                    if(nodew.isWire())
+                    {
+                        cout << "levelize Exception: Wire to Wire" << endl;
+                    }
+                    else if(nodew.isCell())
+                    {
+                        Cell nodec = nodew.toCell();
+                        if(nodec.type().find("FF") && nodec.hasInput("CK"))
+                        {
+                            if(count_map.count(cell.name()) == 0)
+                                count_map[cell.name()] = 1;
+                            else
+                                count_map[cell.name()] = count_map[cell.name()] + 1;
+                            if(count_map[cell.name()] == cell.inputSize())
+                            {
+                                cell.setLevel(1);
+                                Queue.push_back(new Cell(cell));
+                            }
+                        }
+                    }
+                }
+            }
+            else if(node.isCell())
+            {
+                Cell nodec = node.toCell();
+                if(nodec.type().find("FF") && nodec.hasInput("CK"))
+                {
+                    if(count_map.count(cell.name()) == 0)
+                        count_map[cell.name()] = 1;
+                    else
+                        count_map[cell.name()] = count_map[cell.name()] + 1;
+                    if(count_map[cell.name()] == cell.inputSize())
+                    {
+                        cell.setLevel(1);
+                        Queue.push_back(new Cell(cell));
+                    }
+                }
+            }
+        }
+    }
+
     for(size_t in_idx = 0; in_idx < circuit.inputSize(); in_idx++)
     {  
         Port p = circuit.inputPort(in_idx);
@@ -50,6 +104,7 @@ void EDAUtils::levelize(const Circuit &circuit)
                 cout << "Illegal levelize Type" << endl;
         }
     }
+
 
     int l1, l2;
     while(!Queue.empty())
@@ -92,6 +147,28 @@ void EDAUtils::levelize(const Circuit &circuit)
                     }
                 }
             }
+            else if(out.isPort())
+            {
+                Port p = out.toPort();
+                for(size_t k = 0; k < p.outputSize(); k++)
+                {
+                    Node outp = p.output(k);
+                    if(outp.isCell())
+                    {
+                        Cell outc = outp.toCell();
+                        l1 = outc.level();
+                        if(l1 <= l2)
+                            outc.setLevel(l2+1);
+                    }
+                    else if(outp.isGate())
+                    {
+                        Gate outg = outp.toGate();
+                        l1 = outg.level();
+                        if(l1 <= l2)
+                            outg.setLevel(l2+1);
+                    }
+                }
+            }
             else if(out.isCell())
             {
                 Cell outc = out.toCell();
@@ -121,7 +198,7 @@ bool _compare_gates(const Gate &gate1, const Gate &gate2)
 {
     return gate1.level() < gate2.level();
 }
-void EDAUtils::orderGateByLevel(const Circuit &circuit, std::vector<Gate> &gates)
+void EDAUtils::orderByLevel(const Circuit &circuit, std::vector<Gate> &gates)
 {
     levelize(circuit);
     for(size_t idx = 0; idx < circuit.topModule().gateSize(); idx++)
@@ -134,10 +211,31 @@ bool _compare_cells(const Cell &cell1, const Cell &cell2)
 {
     return cell1.level() < cell2.level();
 }
-void EDAUtils::orderCellByLevel(const Circuit &circuit, std::vector<Cell> &cells)
+void EDAUtils::orderByLevel(const Circuit &circuit, std::vector<Cell> &cells)
 {
     levelize(circuit);
     for(size_t idx = 0; idx < circuit.topModule().cellSize(); idx++)
         cells.push_back(circuit.topModule().cell(idx));
     std::sort(cells.begin(), cells.end(), _compare_cells);
+}
+
+void EDAUtils::removeDFF(Circuit &circuit)
+{
+    for(size_t m_idx = 0; m_idx < circuit.moduleSize(); m_idx++)
+    {
+        Module module = circuit.module(m_idx);
+        for(size_t c_idx = 0; c_idx < module.cellSize(); c_idx++)
+        {
+            Cell cell = module.cell(c_idx);
+            if(cell.type().find("FF") && cell.hasInput("CK"))
+            {
+                
+            }
+        }
+    }
+}
+
+void EDAUtils::timeFrameExpansion(Circuit &circuit, unsigned cycles)
+{
+    
 }
