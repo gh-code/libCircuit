@@ -26,7 +26,51 @@ class Module;
 class Circuit;
 
 typedef std::string Pattern;
-typedef unsigned Signal;
+class Signal
+{
+public:
+    enum SignalType {
+        F = 0,  // False
+        T = 1,  // True
+        Z = 2,  // High Impedance
+        X = 3,  // Unknown
+        Last
+    };
+    Signal() : value(0) {}
+    Signal(unsigned s) : value(s) { if (s >= SignalType::Last) value = X; }
+    unsigned operator & (const Signal &other) {
+        if (this->value == Z || other.value == Z)
+            return Z;
+        if (this->value == X || other.value == X)
+            return X;
+        return this->value & other.value;
+    }
+    unsigned operator &= (const Signal &other) {
+        this->value = this->value & other.value;
+        return this->value;
+    }
+    unsigned operator | (const Signal &other) {
+        if (this->value == Z || other.value == Z)
+            return Z;
+        if (this->value == X || other.value == X)
+            return X;
+        return this->value | other.value;
+    }
+    unsigned operator |= (const Signal &other) {
+        this->value = this->value | other.value;
+        return this->value;
+    }
+    unsigned operator ~ () {
+        return ~this->value & 1;
+    }
+    unsigned operator ! () {
+        return operator~();
+    }
+    friend std::ostream& operator << (std::ostream &os, const Signal &s) { os << s.value; return os; }
+
+private:
+    unsigned value;
+};
 
 class Node
 {
@@ -63,6 +107,8 @@ public:
     void connect(const std::string&, Node node);
     void connectInput(size_t, Node node);
     void connectOutput(size_t, Node node);
+
+    virtual void eval();
 
     Node insertAfter(const Node &node);
     Node cloneNode(bool deep = true) const;
@@ -170,6 +216,7 @@ public:
     Gate::GateType gateType() const;
 
     // Overridden from Node
+    void eval();
     inline Node::NodeType nodeType() const { return GateNode; }
 
 private:
@@ -193,10 +240,20 @@ public:
     double area() const;
     double delay() const;
     double slew() const;
+    double inputCapacitance(size_t index) const;
+    double inputCapacitance(const std::string &pinName) const;
+    double inputCapacitanceRise(size_t index) const;
+    double inputCapacitanceRise(const std::string &pinName) const;
+    double inputCapacitanceFall(size_t index) const;
+    double inputCapacitanceFall(const std::string &pinName) const;
 
+    std::string pinName(size_t i);
     void addInputPinName(const std::string&);
     void addOutputPinName(const std::string&);
     Port::PortType pinType(size_t) const;
+    void setInputCapacitance(const std::string &, double cap);
+    void setInputCapacitanceRise(const std::string &, double cap);
+    void setInputCapacitanceFall(const std::string &, double cap);
 
     void setArea(double);
 
@@ -297,8 +354,8 @@ public:
     Pattern input() const;
     Pattern output() const;
     // Write
-    bool input(Pattern &pattern);
-    bool output(Pattern &pattern);
+    bool input(const Pattern &pattern);
+    bool output(const Pattern &pattern);
 
     size_t gateCount() const;
     inline size_t size() const { return gateCount(); }

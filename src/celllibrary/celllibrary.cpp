@@ -112,7 +112,12 @@ bool CellLibraryPrivate::load(std::fstream &infile, const std::string &path)
         {
             LNPin *pin = tmp_cell.pins[i];
             if (pin->direction == "input")
+            {
+                cell.setInputCapacitance(pin->name, pin->capacitance);
+                cell.setInputCapacitanceRise(pin->name, pin->rise_capacitance);
+                cell.setInputCapacitanceFall(pin->name, pin->fall_capacitance);
                 cell.addInputPinName(pin->name);
+            }
             else if (pin->direction == "output")
                 cell.addOutputPinName(pin->name);
             else if (pin->direction == "internal")
