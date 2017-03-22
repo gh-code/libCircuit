@@ -11,7 +11,7 @@ include(parser/verilog/verilog.pri)
 include(parser/liberty/liberty.pri)
 include(celllibrary/celllibrary.pri)
 include(circuit/circuit.pri)
-//include(EDAUtils/EDAUtils.pri)
+include(EDAUtils/EDAUtils.pri)
 
 POST_TARGETDEPS += copy_headers
 QMAKE_EXTRA_TARGETS += copy_headers extraclean

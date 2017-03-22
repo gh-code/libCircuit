@@ -1,15 +1,16 @@
 #include "EDAUtils.h"
-#include <queue>
+#include <algorithm>
+#include <list>
 #include <map>
 
 using namespace std;
 
-unsigned EDAUtils::levelizeCell(const Circuit &circuit, std::vector<Cell*> &cells)
+void EDAUtils::levelize(const Circuit &circuit)
 {
-    cout << "Call EDAUtils::levelizeCell()" << endl;
+    cout << "Call EDAUtils::levelize()" << endl;
 
-    queue<Cell*> Queue;
-    map<Cell*, unsigned> count_map;
+    list<Node*> Queue;
+    map<string, unsigned> count_map;
     for(size_t in_idx = 0; in_idx < circuit.inputSize(); in_idx++)
     {  
         Port p = circuit.inputPort(in_idx);
@@ -18,16 +19,125 @@ unsigned EDAUtils::levelizeCell(const Circuit &circuit, std::vector<Cell*> &cell
             Node node = p.output(pin_idx);
             if(node.isCell())
             {
-                Queue.push_back(node.toCell());
+                Cell cell = node.toCell();
+                if(count_map.count(cell.name()) == 0)
+                    count_map[cell.name()] = 1;
+                else
+                    count_map[cell.name()] = count_map[cell.name()] + 1;
+
+                if(count_map[cell.name()] == cell.inputSize())
+                {
+                    cell.setLevel(1);
+                    Queue.push_back(new Cell(cell));
+                }
             }
-            else
+            else if(node.isGate())
             {
-                cout << "Illegal Node Type" << endl;
+                Gate gate = node.toGate();
+                if(count_map.count(gate.name()) == 0)
+                    count_map[gate.name()] = 1;
+                else
+                    count_map[gate.name()] = count_map[gate.name()] + 1;
+                if(count_map[gate.name()] == gate.inputSize())
+                {
+                    gate.setLevel(1);
+                    Queue.push_back(new Gate(gate));
+                }
             }
+            else if(node.isPort())
+                cout << "Input port directly connect to output port" << endl;
+            else
+                cout << "Illegal levelize Type" << endl;
         }
     }
 
+    int l1, l2;
+    while(!Queue.empty())
+    {
+        Node* node = Queue.front();
+        Queue.pop_front();
+        if(node->isCell())
+            l2 = node->toCell().level();
+        else if(node->isGate())
+            l2 = node->toGate().level();
 
+        for(size_t j = 0; j < node->outputSize(); j++)
+        {
+            Node out = node->output(j);
+            if(out.isWire())
+            {
+                Wire w = out.toWire();
+                for(size_t k = 0; k < w.outputSize(); k++)
+                {
+                    Node outw = w.output(k);
+                    if(outw.isCell())
+                    {
+                        Cell outc = outw.toCell();
+                        l1 = outc.level();
+                        if(l1 <= l2)
+                            outc.setLevel(l2+1);
+                        count_map[outc.name()] = count_map[outc.name()] + 1;
+                        if(count_map[outc.name()] == outc.inputSize())
+                            Queue.push_back(new Cell(outc));
+                    }
+                    else if(outw.isGate())
+                    {
+                        Gate outg = outw.toGate();
+                        l1 = outg.level();
+                        if(l1 <= l2)
+                            outg.setLevel(l2+1);
+                        count_map[outg.name()] = count_map[outg.name()] + 1;
+                        if(count_map[outg.name()] == outg.inputSize())
+                            Queue.push_back(new Gate(outg));
+                    }
+                }
+            }
+            else if(out.isCell())
+            {
+                Cell outc = out.toCell();
+                l1 = outc.level();
+                if(l1 <= l2)
+                    outc.setLevel(l2+1);
+                count_map[outc.name()] = count_map[outc.name()] + 1;
+                if(count_map[outc.name()] == outc.inputSize())
+                    Queue.push_back(new Cell(outc));
+            }
+            else if(out.isGate())
+            {
+                Gate outg = out.toGate();
+                l1 = outg.level();
+                if(l1 <= l2)
+                    outg.setLevel(l2+1);
+                count_map[outg.name()] = count_map[outg.name()] + 1;
+                if(count_map[outg.name()] == outg.inputSize())
+                    Queue.push_back(new Gate(outg));
+            }
+        }
+    }
+}
 
-    return 0;
+static 
+bool _compare_gates(const Gate &gate1, const Gate &gate2)
+{
+    return gate1.level() < gate2.level();
+}
+void EDAUtils::orderGateByLevel(const Circuit &circuit, std::vector<Gate> &gates)
+{
+    levelize(circuit);
+    for(size_t idx = 0; idx < circuit.topModule().gateSize(); idx++)
+        gates.push_back(circuit.topModule().gate(idx));
+    std::sort(gates.begin(), gates.end(), _compare_gates);
+}
+
+static
+bool _compare_cells(const Cell &cell1, const Cell &cell2)
+{
+    return cell1.level() < cell2.level();
+}
+void EDAUtils::orderCellByLevel(const Circuit &circuit, std::vector<Cell> &cells)
+{
+    levelize(circuit);
+    for(size_t idx = 0; idx < circuit.topModule().cellSize(); idx++)
+        cells.push_back(circuit.topModule().cell(idx));
+    std::sort(cells.begin(), cells.end(), _compare_cells);
 }

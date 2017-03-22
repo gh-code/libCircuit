@@ -1,5 +1,6 @@
 #include "circuit.h"
 #include "celllibrary.h"
+#include "EDAUtils.h"
 #include <iostream>
 #include <string>
 
@@ -16,9 +17,9 @@ void forward(const Node &node)
     string spaces(2 * level, ' ');
     cout << spaces << node.nodeName();
     if (node.isGate())
-        cout << " (" << type_str(node.toGate().gateType()) << ")";
+        cout << " (" << type_str(node.toGate().gateType()) << ") {" << node.toGate().level() << ")";
     if (node.isCell())
-        cout << " (" << type_str(node.toCell().gateType()) << ")";
+        cout << " (" << type_str(node.toCell().gateType()) << ") (" << node.toCell().level() << ")";
     cout << endl;
     for (size_t i = 0; i < node.outputSize(); i++)
     {
@@ -93,6 +94,9 @@ int main(int argc, char *argv[])
     cout << std::string(79, '-') << endl;
     printCircuitInfo(circuit);
     cout << std::string(79, '-') << endl;
+
+    vector<Cell> temp;
+    EDAUtils::orderCellByLevel(circuit, temp);
 
     for (size_t i = 0; i < circuit.outputSize(); i++)
         backward(circuit.outputPort(i));

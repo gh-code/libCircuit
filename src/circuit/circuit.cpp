@@ -839,10 +839,11 @@ Wire& Wire::operator=(const Wire &x)
  **************************************************************/
 
 GatePrivate::GatePrivate(GatePrivate* n, bool deep)
-    : NodePrivate(n, deep), level(0)
+    : NodePrivate(n, deep)
 {
     name = n->name;
     type = n->type;
+    level = n->level;
 }
 
 GatePrivate::GatePrivate(CircuitPrivate *c, NodePrivate* p, const std::string &name_, Gate::GateType type_)
