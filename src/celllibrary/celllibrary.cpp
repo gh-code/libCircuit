@@ -119,7 +119,9 @@ bool CellLibraryPrivate::load(std::fstream &infile, const std::string &path)
                 cell.addInputPinName(pin->name);
             }
             else if (pin->direction == "output")
+            {
                 cell.addOutputPinName(pin->name);
+            }
             else if (pin->direction == "internal")
             { /* do nothing */ }
             else

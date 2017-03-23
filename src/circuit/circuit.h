@@ -36,37 +36,15 @@ public:
         X = 3,  // Unknown
         Last
     };
-    Signal() : value(0) {}
-    Signal(unsigned s) : value(s) { if (s >= SignalType::Last) value = X; }
-    unsigned operator & (const Signal &other) {
-        if (this->value == Z || other.value == Z)
-            return Z;
-        if (this->value == X || other.value == X)
-            return X;
-        return this->value & other.value;
-    }
-    unsigned operator &= (const Signal &other) {
-        this->value = this->value & other.value;
-        return this->value;
-    }
-    unsigned operator | (const Signal &other) {
-        if (this->value == Z || other.value == Z)
-            return Z;
-        if (this->value == X || other.value == X)
-            return X;
-        return this->value | other.value;
-    }
-    unsigned operator |= (const Signal &other) {
-        this->value = this->value | other.value;
-        return this->value;
-    }
-    unsigned operator ~ () {
-        return ~this->value & 1;
-    }
-    unsigned operator ! () {
-        return operator~();
-    }
-    friend std::ostream& operator << (std::ostream &os, const Signal &s) { os << s.value; return os; }
+    Signal();
+    Signal(unsigned s);
+    Signal operator& (const Signal&);
+    Signal operator&= (const Signal&);
+    Signal operator| (const Signal&);
+    Signal operator|= (const Signal&);
+    Signal operator~ ();
+    Signal operator! ();
+    friend std::ostream& operator<< (std::ostream&, const Signal&);
 
 private:
     unsigned value;
@@ -113,6 +91,7 @@ public:
     Node insertAfter(const Node &node);
     Node cloneNode(bool deep = true) const;
 
+    inline std::string name() const { return nodeName(); }
     std::string nodeName() const;
     NodeType nodeType() const;
 
@@ -156,7 +135,6 @@ public:
     Port(const Port&);
     Port& operator= (const Port&);
 
-    std::string name() const;
     PortType type() const;
 
     // Overridden from Node
@@ -175,8 +153,6 @@ public:
     Wire();
     Wire(const Wire&);
     Wire& operator= (const Wire&);
-
-    std::string name() const;
 
     // Overridden from Node
     inline Node::NodeType nodeType() const { return WireNode; }
@@ -209,11 +185,12 @@ public:
     Gate(const Gate&);
     Gate& operator= (const Gate&);
 
-    inline std::string name() const { return nodeName(); }
     void setName(const std::string &name);
     int level() const;
-    void setLevel(int level); 
+    void setLevel(int level);
     Gate::GateType gateType() const;
+
+    std::string outputWireName() const;
 
     // Overridden from Node
     void eval();
@@ -236,10 +213,12 @@ public:
     Cell(const Cell&);
     Cell& operator= (const Cell&);
 
+    //Gate::GateType gateType() const;
     std::string type() const;
+
     double area() const;
-    double delay() const;
-    double slew() const;
+    //double delay() const;
+    //double slew() const;
     double inputCapacitance(size_t index) const;
     double inputCapacitance(const std::string &pinName) const;
     double inputCapacitanceRise(size_t index) const;
@@ -247,15 +226,17 @@ public:
     double inputCapacitanceFall(size_t index) const;
     double inputCapacitanceFall(const std::string &pinName) const;
 
-    std::string pinName(size_t i);
-    void addInputPinName(const std::string&);
-    void addOutputPinName(const std::string&);
+    std::string inputPinName(size_t i);
+    std::string outputPinName(size_t i);
     Port::PortType pinType(size_t) const;
-    void setInputCapacitance(const std::string &, double cap);
-    void setInputCapacitanceRise(const std::string &, double cap);
-    void setInputCapacitanceFall(const std::string &, double cap);
 
     void setArea(double);
+    void setInputCapacitance(const std::string&, double cap);
+    void setInputCapacitanceRise(const std::string&, double cap);
+    void setInputCapacitanceFall(const std::string&, double cap);
+
+    void addInputPinName(const std::string&);
+    void addOutputPinName(const std::string&);
 
     // Overridden from Node
     inline Node::NodeType nodeType() const { return CellNode; }
@@ -273,8 +254,6 @@ public:
     Module();
     Module(const Module&);
     Module& operator= (const Module&);
-
-    inline std::string name() const { return nodeName(); }
 
     // Read
     Pattern input() const;
@@ -344,7 +323,6 @@ public:
     Circuit& operator= (const Circuit&);
 
     // Reimplemented from Node
-    inline std::string name() const { return nodeName(); }
     size_t inputSize() const        { return topModule().inputSize(); }
     size_t outputSize() const       { return topModule().outputSize(); }
     Port inputPort(size_t i) const  { return topModule().inputPort(i); }
@@ -367,10 +345,6 @@ public:
     Module topModule() const;
     void setTopModule(Module &module);
 
-    inline Port createPort(const std::string &portName, Port::PortType type)    { return topModule().createPort(portName, type); }
-    inline Wire createWire(const std::string &wireName)                         { return topModule().createWire(wireName); }
-    inline Gate createGate(const std::string &gateName, Gate::GateType type)    { return topModule().createGate(gateName,type); }
-    inline Cell createCell(const std::string &cellName, const std::string &type){ return topModule().createCell(cellName,type); }
     Module createModule(const std::string &name);
 
     void load(std::fstream&, const std::string&);
@@ -414,8 +388,6 @@ private:
 
     friend class Node;
 };
-
-
 
 inline const char * type_str(Node::NodeType type)
 {

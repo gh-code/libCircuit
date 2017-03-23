@@ -772,13 +772,6 @@ Port& Port::operator=(const Port& x)
     return (Port&) Node::operator=(x);
 }
 
-std::string Port::name() const
-{
-    if (!impl)
-        return std::string();
-    return IMPL->nodeName();
-}
-
 Port::PortType Port::type() const
 {
     if (!impl)
@@ -1007,6 +1000,15 @@ Gate::GateType Gate::gateType() const
     return IMPL->gateType();
 }
 
+std::string Gate::outputWireName() const
+{
+    if (!impl || outputSize() != 1)
+        return std::string();
+    if (output(0).isWire() || output(0).isPort())
+        return output(0).nodeName();
+    return name() + "_w"; // for simplied circuit
+}
+
 #undef IMPL
 
 /**************************************************************
@@ -1150,11 +1152,18 @@ void Cell::addOutputPinName(const std::string &pinName)
     IMPL->addOutputPinName(pinName);
 }
 
-std::string Cell::pinName(size_t i)
+std::string Cell::inputPinName(size_t i)
 {
     if (!impl)
         return std::string();
     return impl->inputNames[i];
+}
+
+std::string Cell::outputPinName(size_t i)
+{
+    if (!impl)
+        return std::string();
+    return impl->outputNames[i];
 }
 
 Port::PortType Cell::pinType(size_t i) const
@@ -2316,10 +2325,30 @@ bool Circuit::input(const Pattern &pattern)
             inputPort(i).setValue(1);
         else if (pattern[i] == 'z' || pattern[i] == 'Z')
             inputPort(i).setValue(Signal::Z);
-        else if (pattern[i] == ' ')
-            continue;
         else
             inputPort(i).setValue(Signal::X);
+    }
+    return true;
+}
+
+bool Circuit::output(const Pattern &pattern)
+{
+    if (!impl)
+        return false;
+
+    if (pattern.size() != outputSize())
+        return false;
+
+    for (size_t i = 0; i < outputSize(); i++)
+    {
+        if (pattern[i] == '0')
+            outputPort(i).setValue(0);
+        else if (pattern[i] == '1')
+            outputPort(i).setValue(1);
+        else if (pattern[i] == 'z' || pattern[i] == 'Z')
+            outputPort(i).setValue(Signal::Z);
+        else
+            outputPort(i).setValue(Signal::X);
     }
     return true;
 }
