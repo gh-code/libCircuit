@@ -63,6 +63,13 @@ public:
         BaseNode    = 11
     };
 
+    enum Direct {
+        left        = 0,
+        right       = 1,
+        UNKNOW      = 2
+    };
+    inline static std::string dir2string(Node::Direct dir) { return dir == Node::left ? "left" : "right"; }
+
     Node();
     Node(const Node&);
     Node& operator= (const Node&);
@@ -303,7 +310,7 @@ public:
     Wire createWire(const std::string&);
     Gate createGate(const std::string&, Gate::GateType);
     Cell createCell(const std::string&, const std::string&);
-    bool removeCell(const std::string& cellName);
+    bool removeNode(Node &node);
 
 private:
     Node input(const std::string &name) const;

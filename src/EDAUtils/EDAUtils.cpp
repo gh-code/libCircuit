@@ -5,6 +5,10 @@
 
 using namespace std;
 
+/* const static string PPO_PREFIX = ""; */
+
+const std::string EDAUtils::PPO_PREFIX = "PPO:";
+const std::string EDAUtils::PPI_PREFIX = "PPI:";
 void EDAUtils::levelize(const Circuit &circuit)
 {
     cout << "Call EDAUtils::levelize()" << endl;
@@ -219,7 +223,7 @@ void EDAUtils::orderByLevel(const Circuit &circuit, std::vector<Cell> &cells)
     std::sort(cells.begin(), cells.end(), _compare_cells);
 }
 
-void EDAUtils::removeDFF(Circuit &circuit)
+void EDAUtils::removeAllDFF(Circuit &circuit)
 {
     for(size_t m_idx = 0; m_idx < circuit.moduleSize(); m_idx++)
     {
@@ -229,7 +233,28 @@ void EDAUtils::removeDFF(Circuit &circuit)
             Cell cell = module.cell(c_idx);
             if(cell.type().find("FF") && cell.hasInput("CK"))
             {
-                
+                module.removeNode(cell);
+
+                for(size_t pin_i = 0; pin_i < cell.inputSize(); pin_i++)
+                {
+                    if(cell.inputPinName(pin_i) == "CK") continue;
+
+                    Node nodei = cell.input(pin_i); // Port or Wire
+                    if(!nodei.isNull())
+                    {
+                        Port ppo = module.createPort(PPO_PREFIX + nodei.name(), Port::PortType::PPO);
+                        nodei.connect(Node::dir2string(Node::Direct::right), ppo);
+                    }
+                }
+                for(size_t pin_o = 0; pin_o < cell.outputSize(); pin_o++)
+                {
+                    Node nodeo = cell.output(pin_o); // Wire
+                    if(!nodeo.isNull())
+                    {
+                        Port ppi = module.createPort(PPI_PREFIX + nodeo.name(), Port::PortType::PPI);
+                        nodeo.connect(Node::dir2string(Node::Direct::left), ppi);
+                    }
+                }
             }
         }
     }

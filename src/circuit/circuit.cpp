@@ -174,7 +174,8 @@ public:
     WirePrivate* createWire(const std::string &wireName);
     GatePrivate* createGate(const std::string &gateName, Gate::GateType);
     CellPrivate* createCell(const std::string &cellName, const std::string&);
-    bool removeCell(const std::string &cellName);
+    bool removeNode(Node &node);
+    /* bool removeCell(const std::string &cellName); */
 
     std::map<std::string,PortPrivate*> ports;
     std::map<std::string,WirePrivate*> wires;
@@ -193,6 +194,11 @@ public:
     std::vector<std::string> PONames;
     std::vector<std::string> PPINames;
     std::vector<std::string> PPONames;
+private:
+    bool removeCell(const std::string &cellName);
+    bool removeGate(const std::string &gateName);
+    bool removeWire(const std::string &wireName);
+    bool removePort(const std::string &portName);
 };
 
 class CircuitPrivate : public NodePrivate
@@ -606,6 +612,14 @@ void Node::addOutputPinName(const std::string &pinName)
     return IMPL->addOutputPinName(pinName);
 }
 
+
+/* void Node::connect(Node::Direct dir, Node targ) */
+/* { */
+/*     if (!impl) */
+/*         return; */
+/*     IMPL->connect(dir, targ.impl); */
+/* } */
+
 void Node::connect(const std::string &pinName, Node targ)
 {
     if (!impl)
@@ -744,6 +758,8 @@ PortPrivate::PortPrivate(CircuitPrivate *c, NodePrivate* p, const std::string &n
 {
     name = name_;
     type = type_;
+    addInputPinName(Node::dir2string(Node::Direct::left));
+    addOutputPinName(Node::dir2string(Node::Direct::right));
 }
 
 PortPrivate::~PortPrivate()
@@ -802,6 +818,8 @@ WirePrivate::WirePrivate(CircuitPrivate *c, NodePrivate* p, const std::string &n
 : NodePrivate(c, p)
 {
     name = name_;
+    addInputPinName(Node::dir2string(Node::Direct::left));
+    addOutputPinName(Node::dir2string(Node::Direct::right));
 }
 
 WirePrivate::WirePrivate(WirePrivate* n, bool deep)
@@ -1457,6 +1475,81 @@ GatePrivate* ModulePrivate::createGate(const std::string &gateName, Gate::GateTy
     return w;
 }
 
+bool ModulePrivate::removeNode(Node &node)
+{
+    if(node.isCell())
+        removeCell(node.name());
+    else if(node.isWire())
+        removeWire(node.name());
+    else if(node.isPort())
+        removePort(node.name());
+    else if(node.isGate())
+        removeGate(node.name());
+}
+
+bool ModulePrivate::removeWire(const std::string &wireName)
+{
+    WirePrivate *wire = wires[wireName];
+    for(size_t in = 0; in < wire->inputSize(); in++)
+    {
+        NodePrivate* nodei = wire->input(in);
+        if(nodei != NULL)
+            nodei->outputs.erase(_genkey(wire, Node::dir2string(Node::Direct::right)));
+    }
+    for(size_t out = 0; out < wire->outputSize(); out++)
+    {
+        NodePrivate* nodeo = wire->output(out);
+        if(nodeo != NULL)
+            nodeo->inputs.erase(_genkey(wire, Node::dir2string(Node::Direct::left)));
+    }
+    wires.erase(wireName);
+    wireNames.erase(std::remove(wireNames.begin(), wireNames.end(), wireName), wireNames.end());
+    
+    return true;
+}
+
+bool ModulePrivate::removePort(const std::string &portName)
+{
+    PortPrivate *port = ports[portName];
+    for(size_t in = 0; in < port->inputSize(); in++)
+    {
+        NodePrivate* nodei = port->input(in);
+        if(nodei != NULL)
+            nodei->outputs.erase(_genkey(port, Node::dir2string(Node::Direct::right)));
+    }
+    for(size_t out = 0; out < port->outputSize(); out++)
+    {
+        NodePrivate* nodeo = port->output(out);
+        if(nodeo != NULL)
+            nodeo->inputs.erase(_genkey(port, Node::dir2string(Node::Direct::left)));
+    }
+    ports.erase(portName);
+    portNames.erase(std::remove(portNames.begin(), portNames.end(), portName), portNames.end());
+    
+    return true;
+}
+
+bool ModulePrivate::removeGate(const std::string &gateName)
+{
+    GatePrivate *gate = gates[gateName];
+    for(size_t in = 0; in < gate->inputSize(); in++)
+    {
+        NodePrivate* nodei = gate->input(in);
+        if(nodei != NULL)
+            nodei->outputs.erase(_genkey(gate, gate->inputNames[in]));
+    }
+    for(size_t out = 0; out < gate->outputSize(); out++)
+    {
+        NodePrivate* nodeo = gate->output(out);
+        if(nodeo != NULL)
+            nodeo->inputs.erase(_genkey(gate, gate->outputNames[out]));
+    }
+    gates.erase(gateName);
+    gateNames.erase(std::remove(gateNames.begin(), gateNames.end(), gateName), gateNames.end());
+    
+    return true;
+}
+
 bool ModulePrivate::removeCell(const std::string &cellName)
 {
     CellPrivate *cell = cells[cellName];
@@ -1717,12 +1810,19 @@ Gate Module::createGate(const std::string &gateName, Gate::GateType type)
     return Gate(IMPL->createGate(gateName, type));
 }
 
-bool Module::removeCell(const std::string &cellName)
+bool Module::removeNode(Node &node)
 {
     if (!impl)
         return false;
-    return IMPL->removeCell(cellName);
+    return IMPL->removeNode(node);
 }
+
+/* bool Module::removeCell(const std::string &cellName) */
+/* { */
+/*     if (!impl) */
+/*         return false; */
+/*     return IMPL->removeCell(cellName); */
+/* } */
 
 #undef IMPL
 

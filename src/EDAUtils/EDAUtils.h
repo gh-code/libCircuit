@@ -7,6 +7,8 @@
 class EDAUtils
 {
     public:
+        const static std::string PPO_PREFIX;
+        const static std::string PPI_PREFIX;
         /**
          * Levelize the all gate/cell in Circuit(sequential/combinational),
          * consider using orderCellByLevel() or orderGateByLevel()
@@ -42,7 +44,7 @@ class EDAUtils
          */
         static void orderByLevel(const Circuit &, std::vector<Cell> &);
 
-        static void removeDFF(Circuit &);
+        static void removeAllDFF(Circuit &);
         static void timeFrameExpansion(Circuit &, unsigned);
 };
 

@@ -114,14 +114,11 @@ int main(int argc, char *argv[])
         cout << "(" << c.level() << ")" << endl;
     }
     
-    /* for (size_t i = 0; i < circuit.outputSize(); i++) */
-    /*     backward(circuit.outputPort(i)); */
-    /* for (size_t i = 0; i < circuit.inputSize(); i++) */
-    /*     forward(circuit.inputPort(i)); */
     cout << "===============================" << endl;
+    cout << "========  Remove All DFF  =====" << endl;
     cout << "===============================" << endl;
-    cout << "===============================" << endl;
-    circuit.topModule().removeCell("reg_2");
+    
+    EDAUtils::removeAllDFF(circuit);
 
     for(size_t i = 0; i < circuit.topModule().gateSize(); i++)
     {
@@ -143,25 +140,6 @@ int main(int argc, char *argv[])
         backward(circuit.outputPort(i));
     for (size_t i = 0; i < circuit.inputSize(); i++)
         forward(circuit.inputPort(i));
-
-    /* cout << circuit.topModule().cell("reg_2").inputSize() << endl; */
-    /* cout << circuit.topModule().cell("reg_2").outputSize() << endl; */
-    // for (size_t i = 0; i < circuit.moduleSize(); i++)
-    //     cout << circuit.module(i).name() << " ";
-    // cout << endl;
-    //
-    // cout << "Gate count: ";
-    // cout << circuit.gateCount() << endl;
-    //
-    // cout << "Inputs: ";
-    // for (size_t i = 0; i < circuit.inputSize(); i++)
-    //     cout << circuit.inputPort(i).name() <<  " ";
-    // cout << endl;
-    //
-    // cout << "Outputs: ";
-    // for (size_t i = 0; i < circuit.outputSize(); i++)
-    //     cout << circuit.outputPort(i).name() <<  " ";
-    // cout << endl;
 
     return 0;
 }
