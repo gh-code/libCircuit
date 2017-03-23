@@ -5,13 +5,13 @@
             "name": "C++ Launch",
             "type": "cppdbg",
             "request": "launch",
-            "program": "${workspaceRoot}/circuit",
             "args": [],
             "stopAtEntry": false,
             "cwd": "${workspaceRoot}",
             "environment": [],
             "externalConsole": true,
             "linux": {
+                "program": "${workspaceRoot}/circuit",
                 "MIMode": "gdb",
                 "setupCommands": [
                     {
@@ -25,9 +25,10 @@
                 "MIMode": "lldb"
             },
             "windows": {
+                "program": "${workspaceRoot}/circuit.exe",
                 "MIMode": "gdb",
                 "miDebuggerPath": "C:/MinGW/bin/gdb.exe",
-                "args": ["c17.v"],
+                "args": ["gate.v"],
                 "setupCommands": [
                     {
                         "description": "Enable pretty-printing for gdb",

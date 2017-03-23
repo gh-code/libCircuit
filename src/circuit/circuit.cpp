@@ -110,6 +110,7 @@ public:
     NodePrivate* cloneNode(bool deep = true);
     Node::NodeType nodeType() const { return Node::GateNode; }
 
+    Signal (*func)(const Node&);
     unsigned level;
     Gate::GateType type;
 };
@@ -133,6 +134,9 @@ public:
 
     double area;
     std::string type;
+    std::map<std::string,double> inputCapacitances;
+    std::map<std::string,double> inputCapacitancesRise;
+    std::map<std::string,double> inputCapacitancesFall;
     std::vector<Port::PortType> pinTypes;
 };
 
@@ -612,6 +616,14 @@ void Node::connectOutput(size_t pin, Node targ)
     IMPL->connectOutput(pin, targ.impl);
 }
 
+void Node::eval()
+{
+    if (!impl)
+        return;
+    if (inputSize() > 0)
+        setValue(input(0).value());
+}
+
 // void Node::connect(const std::string &pin, Node &targ, const std::string &targPin)
 // {
 //     if (!impl)
@@ -758,13 +770,6 @@ Port::Port(const std::string &name, Port::PortType type)
 Port& Port::operator=(const Port& x)
 {
     return (Port&) Node::operator=(x);
-}
-
-std::string Port::name() const
-{
-    if (!impl)
-        return std::string();
-    return IMPL->nodeName();
 }
 
 Port::PortType Port::type() const
@@ -931,11 +936,77 @@ void Gate::setLevel(int level)
     IMPL->level = level;
 }
 
+void Gate::eval()
+{
+    switch (IMPL->gateType())
+    {
+        case Gate::INV:
+            setValue(~input(0).value());
+            break;
+        case Gate::BUF:
+            setValue(input(0).value());
+            break;
+        case Gate::NAND:
+        {
+            Signal out = 1;
+            for (size_t i = 0; i < inputSize(); i++)
+                out &= input(i).value();
+            setValue(~out);
+            break;
+        }
+        case Gate::AND:
+        {
+            Signal out = 1;
+            for (size_t i = 0; i < inputSize(); i++)
+                out &= input(i).value();
+            setValue(out);
+            break;
+        }
+        case Gate::NOR:
+        {
+            Signal out = 0;
+            for (size_t i = 0; i < inputSize(); i++)
+                out |= input(i).value();
+            setValue(~out);
+            break;
+        }
+        case Gate::OR:
+        {
+            Signal out = 0;
+            for (size_t i = 0; i < inputSize(); i++)
+                out |= input(i).value();
+            setValue(out);
+            break;
+        }
+        case Gate::XNOR:
+        case Gate::XOR:
+            std::cerr << "WARNING: Unimplemented" << std::endl;
+            break;
+        case Gate::CustomGate:
+        {
+            if (!IMPL->func)
+                std::cerr << "WARNING: Function is not handled" << std::endl;
+            break;
+        }
+        default:
+            std::cerr << "WARNING: Unknown gate operation" << std::endl;
+    }
+}
+
 Gate::GateType Gate::gateType() const
 {
     if (!impl)
         return Gate::BaseGate;
     return IMPL->gateType();
+}
+
+std::string Gate::outputWireName() const
+{
+    if (!impl || outputSize() != 1)
+        return std::string();
+    if (output(0).isWire() || output(0).isPort())
+        return output(0).nodeName();
+    return name() + "_w"; // for simplied circuit
 }
 
 #undef IMPL
@@ -952,6 +1023,9 @@ CellPrivate::CellPrivate(CellPrivate* n, bool deep)
      name = n->name;
      type = n->type;
      area = n->area;
+     inputCapacitances = n->inputCapacitances;
+     inputCapacitancesRise = n->inputCapacitancesRise;
+     inputCapacitancesFall = n->inputCapacitancesFall;
      pinTypes = n->pinTypes;
  }
 
@@ -984,6 +1058,7 @@ CellPrivate::CellPrivate(CircuitPrivate *c, NodePrivate* p, const std::string &n
 {
     name = name_;
     type = type_;
+    area = 0;
 }
 
 CellPrivate::~CellPrivate()
@@ -1077,6 +1152,20 @@ void Cell::addOutputPinName(const std::string &pinName)
     IMPL->addOutputPinName(pinName);
 }
 
+std::string Cell::inputPinName(size_t i)
+{
+    if (!impl)
+        return std::string();
+    return impl->inputNames[i];
+}
+
+std::string Cell::outputPinName(size_t i)
+{
+    if (!impl)
+        return std::string();
+    return impl->outputNames[i];
+}
+
 Port::PortType Cell::pinType(size_t i) const
 {
     if (!impl)
@@ -1096,6 +1185,75 @@ double Cell::area() const
     if (!impl)
         return 0;
     return IMPL->area;
+}
+
+double Cell::inputCapacitance(size_t i) const
+{
+    if (!impl)
+        return 0;
+    return IMPL->inputCapacitances[impl->inputNames[i]];
+}
+
+double Cell::inputCapacitance(const std::string &pinName) const
+{
+    if (!impl)
+        return 0;
+    if (IMPL->inputCapacitances.find(pinName) == IMPL->inputCapacitances.end())
+        return 0;
+    return IMPL->inputCapacitances[pinName];
+}
+
+double Cell::inputCapacitanceRise(size_t i) const
+{
+    if (!impl)
+        return 0;
+    return IMPL->inputCapacitancesRise[impl->inputNames[i]];
+}
+
+double Cell::inputCapacitanceRise(const std::string &pinName) const
+{
+    if (!impl)
+        return 0;
+    if (IMPL->inputCapacitancesRise.find(pinName) == IMPL->inputCapacitancesRise.end())
+        return 0;
+    return IMPL->inputCapacitancesRise[pinName];
+}
+
+double Cell::inputCapacitanceFall(size_t i) const
+{
+    if (!impl)
+        return 0;
+    return IMPL->inputCapacitancesFall[impl->inputNames[i]];
+}
+
+double Cell::inputCapacitanceFall(const std::string &pinName) const
+{
+    if (!impl)
+        return 0;
+    if (IMPL->inputCapacitancesFall.find(pinName) == IMPL->inputCapacitancesFall.end())
+        return 0;
+    return IMPL->inputCapacitancesFall[pinName];
+}
+
+void Cell::setInputCapacitance(const std::string &pinName, double cap)
+{
+    if (!impl)
+        return;
+    IMPL->inputCapacitances[pinName] = cap;
+}
+
+void Cell::setInputCapacitanceRise(const std::string &pinName, double cap)
+{
+    if (!impl)
+        return;
+    IMPL->inputCapacitancesRise[pinName] = cap;
+}
+
+void Cell::setInputCapacitanceFall(const std::string &pinName, double cap)
+{
+    if (!impl)
+        return;
+    IMPL->inputCapacitancesFall[pinName] = cap;
 }
 
 #undef IMPL
@@ -1265,8 +1423,8 @@ PortPrivate* ModulePrivate::createPort(const std::string &portName, Port::PortTy
     PortPrivate *p = new PortPrivate((CircuitPrivate*)this->ownerNode, this, portName, type);
     switch (type)
     {
-        case Port::Input:  addInput(p);  PIs[portName] = p;  break;
-        case Port::Output: addOutput(p); POs[portName] = p;  break;
+        case Port::Input:  addInput(p);  PIs[portName] = p;  PINames.push_back(portName);  break;
+        case Port::Output: addOutput(p); POs[portName] = p;  PONames.push_back(portName);  break;
         case Port::PPI:    addInput(p);  PPIs[portName] = p; PPINames.push_back(portName); break;
         case Port::PPO:    addOutput(p); PPOs[portName] = p; PPONames.push_back(portName); break;
         default:
@@ -1406,6 +1564,13 @@ size_t Module::cellSize() const
     if (!impl)
         return 0;
     return IMPL->cells.size();
+}
+
+size_t Module::portSize() const
+{
+    if (!impl)
+        return 0;
+    return IMPL->ports.size();
 }
 
 bool Module::hasPort(const std::string &name) const
@@ -2142,6 +2307,70 @@ void Circuit::setTopModule(Module &module)
 {
     if (impl)
         IMPL->setTopModule((ModulePrivate*) module.impl);
+}
+
+bool Circuit::input(const Pattern &pattern)
+{
+    if (!impl)
+        return false;
+
+    if (pattern.size() != inputSize())
+        return false;
+
+    for (size_t i = 0; i < inputSize(); i++)
+    {
+        if (pattern[i] == '0')
+            inputPort(i).setValue(0);
+        else if (pattern[i] == '1')
+            inputPort(i).setValue(1);
+        else if (pattern[i] == 'z' || pattern[i] == 'Z')
+            inputPort(i).setValue(Signal::Z);
+        else
+            inputPort(i).setValue(Signal::X);
+    }
+    return true;
+}
+
+bool Circuit::output(const Pattern &pattern)
+{
+    if (!impl)
+        return false;
+
+    if (pattern.size() != outputSize())
+        return false;
+
+    for (size_t i = 0; i < outputSize(); i++)
+    {
+        if (pattern[i] == '0')
+            outputPort(i).setValue(0);
+        else if (pattern[i] == '1')
+            outputPort(i).setValue(1);
+        else if (pattern[i] == 'z' || pattern[i] == 'Z')
+            outputPort(i).setValue(Signal::Z);
+        else
+            outputPort(i).setValue(Signal::X);
+    }
+    return true;
+}
+
+Pattern Circuit::input() const
+{
+    if (!impl)
+        return "";
+    std::ostringstream oss;
+    for (size_t i = 0; i < inputSize(); i++)
+        oss << inputPort(i).value();
+    return oss.str();
+}
+
+Pattern Circuit::output() const
+{
+    if (!impl)
+        return "";
+    std::ostringstream oss;
+    for (size_t i = 0; i < outputSize(); i++)
+        oss << outputPort(i).value();
+    return oss.str();
 }
 
 #undef IMPL
