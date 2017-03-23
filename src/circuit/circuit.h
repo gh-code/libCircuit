@@ -335,6 +335,16 @@ public:
     bool input(const Pattern &pattern);
     bool output(const Pattern &pattern);
 
+    inline Port PI(size_t i) const  { return topModule().PI(i); }
+    inline Port PO(size_t i) const  { return topModule().PO(i); }
+    inline Port PPI(size_t i) const { return topModule().PPI(i); }
+    inline Port PPO(size_t i) const { return topModule().PPO(i); }
+
+    inline size_t PISize() const    { return topModule().PISize(); }
+    inline size_t POSize() const    { return topModule().POSize(); }
+    inline size_t PPISize() const   { return topModule().PPISize(); }
+    inline size_t PPOSize() const   { return topModule().PPOSize(); }
+
     size_t gateCount() const;
     inline size_t size() const { return gateCount(); }
 
