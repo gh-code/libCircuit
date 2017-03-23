@@ -303,6 +303,7 @@ public:
     Wire createWire(const std::string&);
     Gate createGate(const std::string&, Gate::GateType);
     Cell createCell(const std::string&, const std::string&);
+    bool removeCell(const std::string& cellName);
 
 private:
     Node input(const std::string &name) const;

@@ -113,6 +113,32 @@ int main(int argc, char *argv[])
         cout << "outputSize: " << c.outputSize() << endl;
         cout << "(" << c.level() << ")" << endl;
     }
+    
+    /* for (size_t i = 0; i < circuit.outputSize(); i++) */
+    /*     backward(circuit.outputPort(i)); */
+    /* for (size_t i = 0; i < circuit.inputSize(); i++) */
+    /*     forward(circuit.inputPort(i)); */
+    cout << "===============================" << endl;
+    cout << "===============================" << endl;
+    cout << "===============================" << endl;
+    circuit.topModule().removeCell("reg_2");
+
+    for(size_t i = 0; i < circuit.topModule().gateSize(); i++)
+    {
+        Gate c = circuit.topModule().gate(i);
+        cout << "Cell: " << c.name() << "  ";
+        cout << "inputSize: " << c.inputSize() << endl;
+        cout << "outputSize: " << c.outputSize() << endl;
+        cout << "(" << c.level() << ")" << endl;
+    }
+    for(size_t i = 0; i < circuit.topModule().cellSize(); i++)
+    {
+        Cell c = circuit.topModule().cell(i);
+        cout << "Cell: " << c.name() << "  ";
+        cout << "inputSize: " << c.inputSize() << endl;
+        cout << "outputSize: " << c.outputSize() << endl;
+        cout << "(" << c.level() << ")" << endl;
+    }
     for (size_t i = 0; i < circuit.outputSize(); i++)
         backward(circuit.outputPort(i));
     for (size_t i = 0; i < circuit.inputSize(); i++)

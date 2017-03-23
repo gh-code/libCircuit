@@ -174,6 +174,7 @@ public:
     WirePrivate* createWire(const std::string &wireName);
     GatePrivate* createGate(const std::string &gateName, Gate::GateType);
     CellPrivate* createCell(const std::string &cellName, const std::string&);
+    bool removeCell(const std::string &cellName);
 
     std::map<std::string,PortPrivate*> ports;
     std::map<std::string,WirePrivate*> wires;
@@ -1456,6 +1457,27 @@ GatePrivate* ModulePrivate::createGate(const std::string &gateName, Gate::GateTy
     return w;
 }
 
+bool ModulePrivate::removeCell(const std::string &cellName)
+{
+    CellPrivate *cell = cells[cellName];
+    for(size_t in = 0; in < cell->inputSize(); in++)
+    {
+        NodePrivate* nodei = cell->input(in);
+        if(nodei != NULL)
+            nodei->outputs.erase(_genkey(cell, cell->inputNames[in]));
+    }
+    for(size_t out = 0; out < cell->outputSize(); out++)
+    {
+        NodePrivate* nodeo = cell->output(out);
+        if(nodeo != NULL)
+            nodeo->inputs.erase(_genkey(cell, cell->outputNames[out]));
+    }
+    cells.erase(cellName);
+    cellNames.erase(std::remove(cellNames.begin(), cellNames.end(), cellName), cellNames.end());
+    
+    return true;
+}
+
 /**************************************************************
  *
  * Module
@@ -1693,6 +1715,13 @@ Gate Module::createGate(const std::string &gateName, Gate::GateType type)
     if (!impl)
         return Gate();
     return Gate(IMPL->createGate(gateName, type));
+}
+
+bool Module::removeCell(const std::string &cellName)
+{
+    if (!impl)
+        return false;
+    return IMPL->removeCell(cellName);
 }
 
 #undef IMPL
