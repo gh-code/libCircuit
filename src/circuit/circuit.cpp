@@ -350,6 +350,14 @@ void NodePrivate::addOutputPinName(const std::string &pinName)
     outputNames.push_back(pinName);
 }
 
+// targ wire name will be something like "module:U1:ZN"
+static std::string _genkey(NodePrivate *cell, const std::string &pin)
+{
+    std::ostringstream oss;
+    oss << cell->ownerNode->name << ':' << cell->name << ':' << pin;
+    return oss.str();
+}
+
 void NodePrivate::connect(const std::string &pin, NodePrivate *targ)
 {
     if (targ == this)
@@ -359,19 +367,21 @@ void NodePrivate::connect(const std::string &pin, NodePrivate *targ)
     {
         outputs[pin] = targ;
         targ->ref.ref();
-        std::ostringstream oss;
-        oss << targ->inputNames.size();
-        targ->inputNames.push_back(oss.str());
-        targ->inputs[oss.str()] = this;
+        ownerNode = targ->ownerNode;
+        std::string key = _genkey(this, pin);
+        //oss << targ->inputNames.size();
+        targ->inputNames.push_back(key);
+        targ->inputs[key] = this;
     }
     else if (hasInput(pin))
     {
         inputs[pin] = targ;
         targ->ref.ref();
-        std::ostringstream oss;
-        oss << targ->outputNames.size();
-        targ->outputNames.push_back(oss.str());
-        targ->outputs[oss.str()] = this;
+        ownerNode = targ->ownerNode;
+        std::string key = _genkey(this, pin);
+        //oss << targ->outputNames.size();
+        targ->outputNames.push_back(key);
+        targ->outputs[key] = this;
     }
     else
     {
