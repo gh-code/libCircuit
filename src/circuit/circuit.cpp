@@ -8,6 +8,17 @@
 #include <qatomic.h>
 #include "../parser/verilog/driver.h"
 #include "../parser/verilog/expression.h"
+/*************************************************************
+ *
+ * Local (static) variable and function
+ *
+ **************************************************************/
+static std::string _dir2str(Node::Direct dir) 
+{ 
+    return dir == Node::left ? "left" : "right"; 
+}
+
+const static std::string SCOPE_KEY = ":";
 
 /**************************************************************
  *
@@ -40,7 +51,9 @@ public:
     void addOutput(NodePrivate *node);
     void addInputPinName(const std::string &pinName);
     void addOutputPinName(const std::string &pinName);
-    void connect(const std::string &pin, NodePrivate *targ);
+    void connect(const std::string &pin, NodePrivate *targ, const std::string targ_pin = "");
+    /* void connect(const std::string &pin, NodePrivate *targ, const std::string &targ_pin); */
+
     void connectInput(size_t pin, NodePrivate *targ);
     void connectOutput(size_t pin, NodePrivate *targ);
 
@@ -361,38 +374,88 @@ void NodePrivate::addOutputPinName(const std::string &pinName)
 static std::string _genkey(NodePrivate *cell, const std::string &pin)
 {
     std::ostringstream oss;
-    oss << cell->ownerNode->name << ':' << cell->name << ':' << pin;
+    oss << cell->ownerNode->name << SCOPE_KEY << cell->name << SCOPE_KEY << pin;
     return oss.str();
 }
 
-void NodePrivate::connect(const std::string &pin, NodePrivate *targ)
+void NodePrivate::connect(const std::string &pin, NodePrivate *targ, const std::string targ_pin)
 {
     if (targ == this)
         return;
 
-    if (hasOutput(pin))
+    if (this->isCell() || this->isGate())
     {
-        outputs[pin] = targ;
-        targ->ref.ref();
-        ownerNode = targ->ownerNode;
-        std::string key = _genkey(this, pin);
-        //oss << targ->inputNames.size();
-        targ->inputNames.push_back(key);
-        targ->inputs[key] = this;
+        if (hasOutput(pin))
+        {
+            outputs[pin] = targ;
+            targ->ref.ref();
+            ownerNode = targ->ownerNode;
+            std::string key = _genkey(this, pin);
+            //oss << targ->inputNames.size();
+            targ->inputNames.push_back(key);
+            targ->inputs[key] = this;
+        }
+        else if (hasInput(pin))
+        {
+            inputs[pin] = targ;
+            targ->ref.ref();
+            ownerNode = targ->ownerNode;
+            std::string key = _genkey(this, pin);
+            //oss << targ->outputNames.size();
+            targ->outputNames.push_back(key);
+            targ->outputs[key] = this;
+        }
+        else
+        {
+            std::cerr << "No such pin: " << pin << std::endl;
+        }
     }
-    else if (hasInput(pin))
+    else if (this->isPort() || this->isWire())
     {
-        inputs[pin] = targ;
-        targ->ref.ref();
-        ownerNode = targ->ownerNode;
-        std::string key = _genkey(this, pin);
-        //oss << targ->outputNames.size();
-        targ->outputNames.push_back(key);
-        targ->outputs[key] = this;
+        // targ need to be Port or Wire
+        if (targ->isPort() || targ->isWire())
+        {
+            if(pin == _dir2str(Node::Direct::left))
+            {
+                std::string key = _genkey(targ, _dir2str(Node::Direct::right));
+                std::ostringstream oss;
+                oss << key << SCOPE_KEY << targ->outputNames.size();
+                inputNames.push_back(oss.str());
+                inputs[oss.str()] = targ;
+
+                key = _genkey(this, _dir2str(Node::Direct::left));
+                oss.str("");
+                oss << key << SCOPE_KEY << inputNames.size();
+                targ->outputNames.push_back(oss.str());
+                targ->outputs[oss.str()] = this;
+            }
+            else if(pin == _dir2str(Node::Direct::right))
+            {
+                std::string key = _genkey(targ, _dir2str(Node::Direct::left));
+                std::ostringstream oss;
+                oss << key << SCOPE_KEY << targ->inputNames.size();
+                outputNames.push_back(oss.str());
+                outputs[oss.str()] = targ;
+                
+                key = _genkey(this, _dir2str(Node::Direct::right));
+                oss.str("");
+                oss << key << SCOPE_KEY << outputNames.size();
+                targ->inputNames.push_back(oss.str());
+                targ->inputs[oss.str()] = this;
+            }
+            else
+            {
+                std::cerr << "No such pin: " << pin << std::endl;
+            }
+        }
+        else if (targ->isCell() || targ->isGate())
+        {
+            targ->connect(targ_pin, this);
+        }
     }
     else
     {
-        std::cerr << "No such pin: " << pin << std::endl;
+        std::cerr << "No support such connec:" << this->nodeType() << std::endl;
     }
 }
 
@@ -620,11 +683,11 @@ void Node::addOutputPinName(const std::string &pinName)
 /*     IMPL->connect(dir, targ.impl); */
 /* } */
 
-void Node::connect(const std::string &pinName, Node targ)
+void Node::connect(const std::string &pinName, Node targ, const std::string targ_pin)
 {
     if (!impl)
         return;
-    IMPL->connect(pinName, targ.impl);
+    IMPL->connect(pinName, targ.impl, targ_pin);
 }
 
 void Node::connectInput(size_t pin, Node targ)
@@ -758,8 +821,6 @@ PortPrivate::PortPrivate(CircuitPrivate *c, NodePrivate* p, const std::string &n
 {
     name = name_;
     type = type_;
-    addInputPinName(Node::dir2string(Node::Direct::left));
-    addOutputPinName(Node::dir2string(Node::Direct::right));
 }
 
 PortPrivate::~PortPrivate()
@@ -818,8 +879,6 @@ WirePrivate::WirePrivate(CircuitPrivate *c, NodePrivate* p, const std::string &n
 : NodePrivate(c, p)
 {
     name = name_;
-    addInputPinName(Node::dir2string(Node::Direct::left));
-    addOutputPinName(Node::dir2string(Node::Direct::right));
 }
 
 WirePrivate::WirePrivate(WirePrivate* n, bool deep)
@@ -1494,13 +1553,17 @@ bool ModulePrivate::removeWire(const std::string &wireName)
     {
         NodePrivate* nodei = wire->input(in);
         if(nodei != NULL)
-            nodei->outputs.erase(_genkey(wire, Node::dir2string(Node::Direct::right)));
+            nodei->outputs.erase(_genkey(wire, _dir2str(Node::Direct::right)));
+            if(nodei->isWire() || nodei->isPort())
+                nodei->outputNames.erase(std::remove(nodei->outputNames.begin(), nodei->outputNames.end(), _genkey(wire, wire->inputNames[in])), nodei->outputNames.end());
     }
     for(size_t out = 0; out < wire->outputSize(); out++)
     {
         NodePrivate* nodeo = wire->output(out);
         if(nodeo != NULL)
-            nodeo->inputs.erase(_genkey(wire, Node::dir2string(Node::Direct::left)));
+            nodeo->inputs.erase(_genkey(wire, _dir2str(Node::Direct::left)));
+            if(nodeo->isWire() || nodeo->isPort())
+                nodeo->inputNames.erase(std::remove(nodeo->inputNames.begin(), nodeo->inputNames.end(), _genkey(wire, wire->outputNames[out])), nodeo->inputNames.end());
     }
     wires.erase(wireName);
     wireNames.erase(std::remove(wireNames.begin(), wireNames.end(), wireName), wireNames.end());
@@ -1515,13 +1578,17 @@ bool ModulePrivate::removePort(const std::string &portName)
     {
         NodePrivate* nodei = port->input(in);
         if(nodei != NULL)
-            nodei->outputs.erase(_genkey(port, Node::dir2string(Node::Direct::right)));
+            nodei->outputs.erase(_genkey(port, _dir2str(Node::Direct::right)));
+            if(nodei->isWire() || nodei->isPort())
+                nodei->outputNames.erase(std::remove(nodei->outputNames.begin(), nodei->outputNames.end(), _genkey(port, port->inputNames[in])), nodei->outputNames.end());
     }
     for(size_t out = 0; out < port->outputSize(); out++)
     {
         NodePrivate* nodeo = port->output(out);
         if(nodeo != NULL)
-            nodeo->inputs.erase(_genkey(port, Node::dir2string(Node::Direct::left)));
+            nodeo->inputs.erase(_genkey(port, _dir2str(Node::Direct::left)));
+            if(nodeo->isWire() || nodeo->isPort())
+                nodeo->inputNames.erase(std::remove(nodeo->inputNames.begin(), nodeo->inputNames.end(), _genkey(port, port->outputNames[out])), nodeo->inputNames.end());
     }
     ports.erase(portName);
     portNames.erase(std::remove(portNames.begin(), portNames.end(), portName), portNames.end());
@@ -1537,12 +1604,16 @@ bool ModulePrivate::removeGate(const std::string &gateName)
         NodePrivate* nodei = gate->input(in);
         if(nodei != NULL)
             nodei->outputs.erase(_genkey(gate, gate->inputNames[in]));
+            if(nodei->isWire() || nodei->isPort())
+                nodei->outputNames.erase(std::remove(nodei->outputNames.begin(), nodei->outputNames.end(), _genkey(gate, gate->inputNames[in])), nodei->outputNames.end());
     }
     for(size_t out = 0; out < gate->outputSize(); out++)
     {
         NodePrivate* nodeo = gate->output(out);
         if(nodeo != NULL)
             nodeo->inputs.erase(_genkey(gate, gate->outputNames[out]));
+            if(nodeo->isWire() || nodeo->isPort())
+                nodeo->inputNames.erase(std::remove(nodeo->inputNames.begin(), nodeo->inputNames.end(), _genkey(gate, gate->outputNames[out])), nodeo->inputNames.end());
     }
     gates.erase(gateName);
     gateNames.erase(std::remove(gateNames.begin(), gateNames.end(), gateName), gateNames.end());
@@ -1556,14 +1627,20 @@ bool ModulePrivate::removeCell(const std::string &cellName)
     for(size_t in = 0; in < cell->inputSize(); in++)
     {
         NodePrivate* nodei = cell->input(in);
-        if(nodei != NULL)
+        if(nodei != NULL) {
             nodei->outputs.erase(_genkey(cell, cell->inputNames[in]));
+            if(nodei->isWire() || nodei->isPort())
+                nodei->outputNames.erase(std::remove(nodei->outputNames.begin(), nodei->outputNames.end(), _genkey(cell, cell->inputNames[in])), nodei->outputNames.end());
+        }
     }
     for(size_t out = 0; out < cell->outputSize(); out++)
     {
         NodePrivate* nodeo = cell->output(out);
-        if(nodeo != NULL)
+        if(nodeo != NULL) {
             nodeo->inputs.erase(_genkey(cell, cell->outputNames[out]));
+            if(nodeo->isWire() || nodeo->isPort())
+                nodeo->inputNames.erase(std::remove(nodeo->inputNames.begin(), nodeo->inputNames.end(), _genkey(cell, cell->outputNames[out])), nodeo->inputNames.end());
+        }
     }
     cells.erase(cellName);
     cellNames.erase(std::remove(cellNames.begin(), cellNames.end(), cellName), cellNames.end());

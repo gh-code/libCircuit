@@ -136,8 +136,10 @@ int main(int argc, char *argv[])
         cout << "outputSize: " << c.outputSize() << endl;
         cout << "(" << c.level() << ")" << endl;
     }
+    cout << "======== backward =========" << endl;
     for (size_t i = 0; i < circuit.outputSize(); i++)
         backward(circuit.outputPort(i));
+    cout << "======== forward ==========" << endl;
     for (size_t i = 0; i < circuit.inputSize(); i++)
         forward(circuit.inputPort(i));
 

@@ -198,7 +198,7 @@ void EDAUtils::levelize(const Circuit &circuit)
 }
 
 static 
-bool _compare_gates(const Gate &gate1, const Gate &gate2)
+bool _compare_(const Gate &gate1, const Gate &gate2)
 {
     return gate1.level() < gate2.level();
 }
@@ -207,20 +207,15 @@ void EDAUtils::orderByLevel(const Circuit &circuit, std::vector<Gate> &gates)
     levelize(circuit);
     for(size_t idx = 0; idx < circuit.topModule().gateSize(); idx++)
         gates.push_back(circuit.topModule().gate(idx));
-    std::sort(gates.begin(), gates.end(), _compare_gates);
+    std::sort(gates.begin(), gates.end(), _compare_);
 }
 
-static
-bool _compare_cells(const Cell &cell1, const Cell &cell2)
-{
-    return cell1.level() < cell2.level();
-}
 void EDAUtils::orderByLevel(const Circuit &circuit, std::vector<Cell> &cells)
 {
     levelize(circuit);
     for(size_t idx = 0; idx < circuit.topModule().cellSize(); idx++)
         cells.push_back(circuit.topModule().cell(idx));
-    std::sort(cells.begin(), cells.end(), _compare_cells);
+    std::sort(cells.begin(), cells.end(), _compare_);
 }
 
 void EDAUtils::removeAllDFF(Circuit &circuit)
@@ -243,7 +238,7 @@ void EDAUtils::removeAllDFF(Circuit &circuit)
                     if(!nodei.isNull())
                     {
                         Port ppo = module.createPort(PPO_PREFIX + nodei.name(), Port::PortType::PPO);
-                        nodei.connect(Node::dir2string(Node::Direct::right), ppo);
+                        nodei.connect(Node::dir2str(Node::Direct::right), ppo);
                     }
                 }
                 for(size_t pin_o = 0; pin_o < cell.outputSize(); pin_o++)
@@ -252,7 +247,7 @@ void EDAUtils::removeAllDFF(Circuit &circuit)
                     if(!nodeo.isNull())
                     {
                         Port ppi = module.createPort(PPI_PREFIX + nodeo.name(), Port::PortType::PPI);
-                        nodeo.connect(Node::dir2string(Node::Direct::left), ppi);
+                        nodeo.connect(Node::dir2str(Node::Direct::left), ppi);
                     }
                 }
             }

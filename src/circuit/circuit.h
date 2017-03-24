@@ -68,8 +68,7 @@ public:
         right       = 1,
         UNKNOW      = 2
     };
-    inline static std::string dir2string(Node::Direct dir) { return dir == Node::left ? "left" : "right"; }
-
+    inline static std::string dir2str(Direct dir) { return dir == left ? "left" : "right"; } 
     Node();
     Node(const Node&);
     Node& operator= (const Node&);
@@ -89,7 +88,7 @@ public:
     void addOutput(Node &node);
     void addInputPinName(const std::string &pinName);
     void addOutputPinName(const std::string &pinName);
-    void connect(const std::string&, Node node);
+    void connect(const std::string&, Node node, const std::string = "");
     void connectInput(size_t, Node node);
     void connectOutput(size_t, Node node);
 

@@ -45,6 +45,7 @@ class EDAUtils
         static void orderByLevel(const Circuit &, std::vector<Cell> &);
 
         static void removeAllDFF(Circuit &);
+
         static void timeFrameExpansion(Circuit &, unsigned);
 };
 
