@@ -94,7 +94,6 @@ public:
 
     virtual void eval();
 
-    Node insertAfter(const Node &node);
     Node cloneNode(bool deep = true) const;
 
     inline std::string name() const { return nodeName(); }
@@ -244,6 +243,7 @@ public:
     void addInputPinName(const std::string&);
     void addOutputPinName(const std::string&);
 
+    void breakOutputConnection(const std::string &pinName);
     // Overridden from Node
     inline Node::NodeType nodeType() const { return CellNode; }
 

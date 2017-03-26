@@ -13,6 +13,9 @@ void usage()
 
 void forward(const Node &node)
 {
+    if(node.isNull())
+        return;
+
     static int level = 0;
     string spaces(2 * level, ' ');
     cout << spaces << node.nodeName();
@@ -31,6 +34,9 @@ void forward(const Node &node)
 
 void backward(const Node &node)
 {
+    if(node.isNull())
+        return;
+
     static int level = 0;
     string spaces(2 * level, ' ');
     cout << spaces << node.nodeName();
@@ -120,6 +126,7 @@ int main(int argc, char *argv[])
     
     EDAUtils::removeAllDFF(circuit);
 
+    printCircuitInfo(circuit);
     for(size_t i = 0; i < circuit.topModule().gateSize(); i++)
     {
         Gate c = circuit.topModule().gate(i);
@@ -143,5 +150,33 @@ int main(int argc, char *argv[])
     for (size_t i = 0; i < circuit.inputSize(); i++)
         forward(circuit.inputPort(i));
 
+    cout << "===============================" << endl;
+    cout << "===== Insert MUX to Cell  =====" << endl;
+    cout << "===============================" << endl;
+    EDAUtils::insertCell2AllCellOutputs(circuit, library, EDAUtils::mux_connect_interal);
+
+    printCircuitInfo(circuit);
+    for(size_t i = 0; i < circuit.topModule().gateSize(); i++)
+    {
+        Gate c = circuit.topModule().gate(i);
+        cout << "Cell: " << c.name() << "  ";
+        cout << "inputSize: " << c.inputSize() << endl;
+        cout << "outputSize: " << c.outputSize() << endl;
+        cout << "(" << c.level() << ")" << endl;
+    }
+    for(size_t i = 0; i < circuit.topModule().cellSize(); i++)
+    {
+        Cell c = circuit.topModule().cell(i);
+        cout << "Cell: " << c.name() << "  ";
+        cout << "inputSize: " << c.inputSize() << endl;
+        cout << "outputSize: " << c.outputSize() << endl;
+        cout << "(" << c.level() << ")" << endl;
+    }
+    cout << "======== backward =========" << endl;
+    for (size_t i = 0; i < circuit.outputSize(); i++)
+        backward(circuit.outputPort(i));
+    cout << "======== forward ==========" << endl;
+    for (size_t i = 0; i < circuit.inputSize(); i++)
+        forward(circuit.inputPort(i));
     return 0;
 }
