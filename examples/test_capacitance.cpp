@@ -1,4 +1,5 @@
 #include "circuit.h"
+#include "celllibrary.h"
 #include <iostream>
 
 using namespace std;
@@ -21,7 +22,7 @@ int main()
         cout << cell.type() << endl;
         for (size_t j = 0; j < cell.inputSize(); j++)
         {
-            cout << cell.pinName(j) << ": ";
+            cout << cell.inputPinName(j) << ": ";
             cout << cell.inputCapacitance(j) << endl;
         }
     }

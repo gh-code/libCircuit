@@ -1,4 +1,6 @@
 #include "circuit.h"
+#include "celllibrary.h"
+#include "EDAUtils.h"
 #include <iostream>
 #include <vector>
 
@@ -16,17 +18,17 @@ int main()
     }
 
     vector<Cell> levelCells;
-    EDAUtils::orderCellByLevel(circuit, levelCells);
+    EDAUtils::orderByLevel(circuit, levelCells);
 
     if (circuit.name() == "c17")
     {
         vector<std::string> patterns{"00000", "10100"};
 
-        for (int i = 0; i < 2; i++)
+        for (int i = 0; i < patterns.size(); i++)
         {
             if (!circuit.input(patterns[i]))
             {
-                cerr << "fail" << endl;
+                cerr << "fail with input size" << endl;
                 return 1;
             }
             cout << circuit.input() << "|";
