@@ -3,9 +3,11 @@
 
 #include <vector>
 #include "circuit.h"
+#include "celllibrary.h"
 
 class EDAUtils
 {
+    private:
     public:
         /**
          * Levelize the all gate/cell in Circuit(sequential/combinational),
@@ -16,7 +18,7 @@ class EDAUtils
          *  Circuit c17("c17.v");
          *  EDAUtils::levelize(c17);
          */
-        static void levelize(const Circuit &);
+        static void levelize(const Circuit &circuit);
 
         /**
          * Levelize Circuit(sequential/combinational) and feedback the levelized Gates
@@ -28,7 +30,7 @@ class EDAUtils
          *  std::vector<Gate> gateList;
          *  EDAUtils::orderGateByLevel(c17, gateList);
          */
-        static void orderByLevel(const Circuit &, std::vector<Gate> &);
+        static void orderByLevel(const Circuit &circuit, std::vector<Gate> &orderedList);
 
         /**
          * Levelize Circuit(sequential/combinational) and feedback the levelized Cell
@@ -40,9 +42,13 @@ class EDAUtils
          *  std::vector<Cell> cellList;
          *  EDAUtils::orderCellByLevel(c17, cellList);
          */
-        static void orderByLevel(const Circuit &, std::vector<Cell> &);
+        static void orderByLevel(const Circuit &circuit, std::vector<Cell> &orderedList);
 
-        static void removeDFF(Circuit &);
+        static void removeAllDFF(Circuit &circuit);
+       
+        static bool mux_connect_interal(Circuit &circuit, Cell &target, CellLibrary &library, std::vector<Cell> &newCells);
+        static bool insertCell2AllCellOutputs(Circuit &circuit, CellLibrary &library, bool (*CALLBACK)(Circuit &circuit, Cell &target, CellLibrary &library, std::vector<Cell> &newCells));
+
         static void timeFrameExpansion(Circuit &, unsigned);
 };
 

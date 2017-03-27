@@ -2,7 +2,7 @@
 include( ../common.pri )
 TEMPLATE = lib
 TARGET = EDAUtils
-INCLUDEPATH += ../circuit
+INCLUDEPATH += ../circuit ../celllibrary
 HEADERS = EDAUtils.h
 SOURCES = EDAUtils.cpp
 CONFIG += debug

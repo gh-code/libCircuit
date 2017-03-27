@@ -63,6 +63,12 @@ public:
         BaseNode    = 11
     };
 
+    enum Direct {
+        left        = 0,
+        right       = 1,
+        UNKNOW      = 2
+    };
+    inline static std::string dir2str(Direct dir) { return dir == left ? "left" : "right"; } 
     Node();
     Node(const Node&);
     Node& operator= (const Node&);
@@ -82,13 +88,12 @@ public:
     void addOutput(Node &node);
     void addInputPinName(const std::string &pinName);
     void addOutputPinName(const std::string &pinName);
-    void connect(const std::string&, Node node);
+    void connect(const std::string&, Node node, const std::string = "");
     void connectInput(size_t, Node node);
     void connectOutput(size_t, Node node);
 
     virtual void eval();
 
-    Node insertAfter(const Node &node);
     Node cloneNode(bool deep = true) const;
 
     inline std::string name() const { return nodeName(); }
@@ -238,6 +243,7 @@ public:
     void addInputPinName(const std::string&);
     void addOutputPinName(const std::string&);
 
+    void breakOutputConnection(const std::string &pinName);
     // Overridden from Node
     inline Node::NodeType nodeType() const { return CellNode; }
 
@@ -303,6 +309,7 @@ public:
     Wire createWire(const std::string&);
     Gate createGate(const std::string&, Gate::GateType);
     Cell createCell(const std::string&, const std::string&);
+    bool removeNode(Node &node);
 
 private:
     Node input(const std::string &name) const;

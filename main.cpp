@@ -13,6 +13,9 @@ void usage()
 
 void forward(const Node &node)
 {
+    if(node.isNull())
+        return;
+
     static int level = 0;
     string spaces(2 * level, ' ');
     cout << spaces << node.nodeName();
@@ -31,6 +34,9 @@ void forward(const Node &node)
 
 void backward(const Node &node)
 {
+    if(node.isNull())
+        return;
+
     static int level = 0;
     string spaces(2 * level, ' ');
     cout << spaces << node.nodeName();
@@ -113,29 +119,64 @@ int main(int argc, char *argv[])
         cout << "outputSize: " << c.outputSize() << endl;
         cout << "(" << c.level() << ")" << endl;
     }
+    
+    cout << "===============================" << endl;
+    cout << "========  Remove All DFF  =====" << endl;
+    cout << "===============================" << endl;
+    
+    EDAUtils::removeAllDFF(circuit);
+
+    printCircuitInfo(circuit);
+    for(size_t i = 0; i < circuit.topModule().gateSize(); i++)
+    {
+        Gate c = circuit.topModule().gate(i);
+        cout << "Cell: " << c.name() << "  ";
+        cout << "inputSize: " << c.inputSize() << endl;
+        cout << "outputSize: " << c.outputSize() << endl;
+        cout << "(" << c.level() << ")" << endl;
+    }
+    for(size_t i = 0; i < circuit.topModule().cellSize(); i++)
+    {
+        Cell c = circuit.topModule().cell(i);
+        cout << "Cell: " << c.name() << "  ";
+        cout << "inputSize: " << c.inputSize() << endl;
+        cout << "outputSize: " << c.outputSize() << endl;
+        cout << "(" << c.level() << ")" << endl;
+    }
+    cout << "======== backward =========" << endl;
     for (size_t i = 0; i < circuit.outputSize(); i++)
         backward(circuit.outputPort(i));
+    cout << "======== forward ==========" << endl;
     for (size_t i = 0; i < circuit.inputSize(); i++)
         forward(circuit.inputPort(i));
 
-    /* cout << circuit.topModule().cell("reg_2").inputSize() << endl; */
-    /* cout << circuit.topModule().cell("reg_2").outputSize() << endl; */
-    // for (size_t i = 0; i < circuit.moduleSize(); i++)
-    //     cout << circuit.module(i).name() << " ";
-    // cout << endl;
-    //
-    // cout << "Gate count: ";
-    // cout << circuit.gateCount() << endl;
-    //
-    // cout << "Inputs: ";
-    // for (size_t i = 0; i < circuit.inputSize(); i++)
-    //     cout << circuit.inputPort(i).name() <<  " ";
-    // cout << endl;
-    //
-    // cout << "Outputs: ";
-    // for (size_t i = 0; i < circuit.outputSize(); i++)
-    //     cout << circuit.outputPort(i).name() <<  " ";
-    // cout << endl;
+    cout << "===============================" << endl;
+    cout << "===== Insert MUX to Cell  =====" << endl;
+    cout << "===============================" << endl;
+    EDAUtils::insertCell2AllCellOutputs(circuit, library, EDAUtils::mux_connect_interal);
 
+    printCircuitInfo(circuit);
+    for(size_t i = 0; i < circuit.topModule().gateSize(); i++)
+    {
+        Gate c = circuit.topModule().gate(i);
+        cout << "Cell: " << c.name() << "  ";
+        cout << "inputSize: " << c.inputSize() << endl;
+        cout << "outputSize: " << c.outputSize() << endl;
+        cout << "(" << c.level() << ")" << endl;
+    }
+    for(size_t i = 0; i < circuit.topModule().cellSize(); i++)
+    {
+        Cell c = circuit.topModule().cell(i);
+        cout << "Cell: " << c.name() << "  ";
+        cout << "inputSize: " << c.inputSize() << endl;
+        cout << "outputSize: " << c.outputSize() << endl;
+        cout << "(" << c.level() << ")" << endl;
+    }
+    cout << "======== backward =========" << endl;
+    for (size_t i = 0; i < circuit.outputSize(); i++)
+        backward(circuit.outputPort(i));
+    cout << "======== forward ==========" << endl;
+    for (size_t i = 0; i < circuit.inputSize(); i++)
+        forward(circuit.inputPort(i));
     return 0;
 }
