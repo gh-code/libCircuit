@@ -24,7 +24,50 @@ void EDAUtils::levelize(const Circuit &circuit)
 
     list<Node*> Queue;
     map<string, unsigned> count_map;
-    
+  
+    // Set Internal Wire ready
+    for(size_t i = 0; i < circuit.topModule().wireSize(); i++)
+    {
+        Wire wire = circuit.topModule().wire(i);
+        if(wire.isInternal())
+        {
+            for(size_t j = 0; j < wire.outputSize(); j++)
+            {
+                Node node = wire.output(j);
+                if(node.isCell())
+                {
+                    Cell cell = node.toCell();
+                    if(count_map.count(cell.name()) == 0)
+                        count_map[cell.name()] = 1;
+                    else
+                        count_map[cell.name()] = count_map[cell.name()] + 1;
+
+                    if(count_map[cell.name()] == cell.inputSize())
+                    {
+                        cell.setLevel(1);
+                        Queue.push_back(new Cell(cell));
+                    }
+
+                }
+                else if(node.isGate())
+                {
+                    Gate gate = node.toGate();
+                    if(count_map.count(gate.name()) == 0)
+                        count_map[gate.name()] = 1;
+                    else
+                        count_map[gate.name()] = count_map[gate.name()] + 1;
+
+                    if(count_map[gate.name()] == gate.inputSize())
+                    {
+                        gate.setLevel(1);
+                        Queue.push_back(new Gate(gate));
+                    }
+                }
+            }
+        }
+    }
+
+    // If circuit is sequential, search FF and set the cell ready
     for(size_t c_idx = 0; c_idx < circuit.topModule().cellSize(); c_idx++)
     {
         Cell cell = circuit.topModule().cell(c_idx);
@@ -78,6 +121,7 @@ void EDAUtils::levelize(const Circuit &circuit)
         }
     }
 
+    // Set all input port (PI PPI) ready
     for(size_t in_idx = 0; in_idx < circuit.inputSize(); in_idx++)
     {  
         Port p = circuit.inputPort(in_idx);
@@ -113,8 +157,45 @@ void EDAUtils::levelize(const Circuit &circuit)
             }
             else if(node.isPort())
                 cout << "Input port directly connect to output port" << endl;
-            else
-                cout << "Illegal levelize Type" << endl;
+            else if(node.isWire())
+            {
+                Wire wire = node.toWire();
+                for(size_t wo = 0; wo < wire.outputSize(); wo++)
+                {
+                    Node node = wire.output(wo);
+                    if(node.isCell())
+                    {
+                        Cell cell = node.toCell();
+                        if(count_map.count(cell.name()) == 0)
+                            count_map[cell.name()] = 1;
+                        else
+                            count_map[cell.name()] = count_map[cell.name()] + 1;
+
+                        if(count_map[cell.name()] == cell.inputSize())
+                        {
+                            cell.setLevel(1);
+                            Queue.push_back(new Cell(cell));
+                        }
+                    }
+                    else if(node.isGate())
+                    {
+                        Gate gate = node.toGate();
+                        if(count_map.count(gate.name()) == 0)
+                            count_map[gate.name()] = 1;
+                        else
+                            count_map[gate.name()] = count_map[gate.name()] + 1;
+                        if(count_map[gate.name()] == gate.inputSize())
+                        {
+                            gate.setLevel(1);
+                            Queue.push_back(new Gate(gate));
+                        }
+                    }
+                    else
+                    {
+                        cout << "Illegal levelize Type" << endl;
+                    }
+                }
+            }
         }
     }
 
@@ -217,6 +298,10 @@ void EDAUtils::orderByLevel(const Circuit &circuit, std::vector<Gate> &gates)
     for(size_t idx = 0; idx < circuit.topModule().gateSize(); idx++)
         gates.push_back(circuit.topModule().gate(idx));
     std::sort(gates.begin(), gates.end(), _compare_);
+   
+    for(size_t idx = 0; idx < circuit.topModule().cellSize(); idx++)
+        gates.push_back(circuit.topModule().cell(idx).toGate());
+    std::sort(gates.begin(), gates.end(), _compare_);
 }
 
 void EDAUtils::orderByLevel(const Circuit &circuit, std::vector<Cell> &cells)
@@ -305,7 +390,13 @@ bool EDAUtils::mux_connect_interal(Circuit &circuit, Cell &target, CellLibrary &
                 target.breakOutputConnection(target.outputPinName(out));
                 Wire ta = circuit.topModule().createWire(_genWireName(newCell, "A"));
                 Wire tb = circuit.topModule().createWire(_genWireName(newCell, "B"));
+                tb.setInternal(true);
+                tb.setValue(0);
                 Wire sel = circuit.topModule().createWire(_genWireName(newCell, "S"));
+                sel.setInternal(true);
+                sel.setValue(0);
+                /* Port tb = circuit.topModule().createPort(_genPortName(newCell, "B"), Port::PortType::Input); */
+                /* Port sel = circuit.topModule().createPort(_genPortName(newCell, "S"), Port::PortType::Input); */
 
                 newCell.connect("A", ta);
                 newCell.connect("B", tb);

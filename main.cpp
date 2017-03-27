@@ -178,5 +178,54 @@ int main(int argc, char *argv[])
     cout << "======== forward ==========" << endl;
     for (size_t i = 0; i < circuit.inputSize(); i++)
         forward(circuit.inputPort(i));
+
+    temp.clear();
+    EDAUtils::orderByLevel(circuit, temp);
+
+    printCircuitInfo(circuit);
+    for(size_t i = 0; i < circuit.topModule().gateSize(); i++)
+    {
+        Gate c = circuit.topModule().gate(i);
+        cout << "Cell: " << c.name() << "  ";
+        cout << "inputSize: " << c.inputSize() << endl;
+        cout << "outputSize: " << c.outputSize() << endl;
+        cout << "(" << c.level() << ")" << endl;
+    }
+    for(size_t i = 0; i < circuit.topModule().cellSize(); i++)
+    {
+        Cell c = circuit.topModule().cell(i);
+        cout << "Cell: " << c.name() << "  ";
+        cout << "inputSize: " << c.inputSize() << endl;
+        cout << "outputSize: " << c.outputSize() << endl;
+        cout << "(" << c.level() << ")" << endl;
+    }
+
+    cout << "======= Simulation =======" << endl;
+    circuit.input("00000");
+    for (size_t i = 0; i < circuit.inputSize(); i++)
+    {
+        Port p = circuit.inputPort(i);
+        for(size_t j = 0; j < p.outputSize(); j++)
+        {
+            Node node = p.output(j);
+            if(node.isWire())
+            {
+                node.setValue(p.value());
+            }
+        }
+    }
+    for (size_t i = 0; i < temp.size(); i++)
+    {
+        Cell cell = temp[i];
+        cell.eval();
+        cell.output(0).eval();
+        cout << "Cell: " << cell.name() << "  Value = " << cell.value() << endl;
+        cout << "(";
+        for(size_t j = 0; j < cell.inputSize(); j++)
+            cout << cell.inputPinName(j) << ":" << cell.input(j).value() << " $ ";
+        cout << ")" << endl;
+    }
+    cout << "output" << endl;
+    cout << circuit.output() << endl;
     return 0;
 }

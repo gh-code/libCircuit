@@ -40,6 +40,11 @@ Signal Signal::operator|= (const Signal &other)
     return this->value;
 }
 
+bool Signal::operator== (const Signal &other)
+{
+    return this->value == other.value;
+}
+
 Signal Signal::operator~ () {
     if (this->value == Z)
         return Z;
