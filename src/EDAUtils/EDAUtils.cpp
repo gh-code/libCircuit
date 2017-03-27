@@ -430,7 +430,7 @@ bool EDAUtils::insertCell2AllCellOutputs(Circuit &circuit, CellLibrary &library,
     return true;
 }
 
-void EDAUtils::timeFrameExpansion(Circuit &circuit, unsigned cycles)
-{
+/* void EDAUtils::timeFrameExpansion(Circuit &circuit, unsigned cycles) */
+/* { */
     
-}
+/* } */

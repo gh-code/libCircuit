@@ -19,6 +19,10 @@ void forward(const Node &node)
     static int level = 0;
     string spaces(2 * level, ' ');
     cout << spaces << node.nodeName();
+    if (node.isWire())
+        cout << " (W)" ;
+    if (node.isPort())
+        cout << " (P)" ;
     if (node.isGate())
         cout << " (" << type_str(node.toGate().gateType()) << ") {" << node.toGate().level() << ")";
     if (node.isCell())
@@ -40,6 +44,11 @@ void backward(const Node &node)
     static int level = 0;
     string spaces(2 * level, ' ');
     cout << spaces << node.nodeName();
+    if (node.isWire())
+        cout << " (W)" ;
+    if (node.isPort())
+        cout << " (P)" ;
+    if (node.isGate())
     if (node.isGate())
         cout << " (" << type_str(node.toGate().gateType()) << ")";
     if (node.isCell())
@@ -224,6 +233,16 @@ int main(int argc, char *argv[])
         for(size_t j = 0; j < cell.inputSize(); j++)
             cout << cell.inputPinName(j) << ":" << cell.input(j).value() << " $ ";
         cout << ")" << endl;
+    }
+    for (size_t i = 0; i < circuit.outputSize(); i++)
+    {
+        Port p = circuit.outputPort(i);
+        for(size_t j = 0; j < p.inputSize(); j++)
+        {
+            Node node = p.input(j);
+            if(node.isWire())
+                p.setValue(node.value());
+        }
     }
     cout << "output" << endl;
     cout << circuit.output() << endl;
