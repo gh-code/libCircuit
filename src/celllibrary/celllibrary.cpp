@@ -120,6 +120,9 @@ bool CellLibraryPrivate::load(std::fstream &infile, const std::string &path)
             }
             else if (pin->direction == "output")
             {
+                cell.setFunction(pin->function);
+                cell.setOutputMaxCapacitance(pin->name, pin->max_capacitance);
+                cell.setOutputMaxTransition(pin->name, pin->max_transition);
                 cell.addOutputPinName(pin->name);
             }
             else if (pin->direction == "internal")
