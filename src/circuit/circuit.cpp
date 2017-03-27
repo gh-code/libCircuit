@@ -78,6 +78,7 @@ public:
     std::vector<std::string> inputNames;
     std::vector<std::string> outputNames;
     bool hasParent : 1;
+    bool isInternal;
 
     std::string name;
     Signal value;
@@ -251,7 +252,7 @@ inline void NodePrivate::setOwnerCircuit(CircuitPrivate *c)
     hasParent = false;
 }
 
-NodePrivate::NodePrivate(CircuitPrivate *c, NodePrivate *parent) : ref(1)
+NodePrivate::NodePrivate(CircuitPrivate *c, NodePrivate *parent) : ref(1), isInternal(false)
 {
     if (parent)
         setParent(parent);
@@ -259,7 +260,7 @@ NodePrivate::NodePrivate(CircuitPrivate *c, NodePrivate *parent) : ref(1)
         setOwnerCircuit(c);
 }
 
-NodePrivate::NodePrivate(NodePrivate* n, bool deep) : ref(1)
+NodePrivate::NodePrivate(NodePrivate* n, bool deep) : ref(1), isInternal(false)
 {
     setOwnerCircuit(n->ownerCircuit());
     name = n->name;
@@ -791,6 +792,20 @@ bool Node::isCircuit() const
     return false;
 }
 
+void Node::setInternal(bool internal)
+{
+    if (!impl)
+        return;
+    IMPL->isInternal = internal;
+}
+
+bool Node::isInternal() const
+{
+    if (!impl)
+        return false;
+    return IMPL->isInternal;
+}
+
 Signal Node::value() const
 {
     if (!impl)
@@ -1024,6 +1039,11 @@ void Gate::setLevel(int level)
 
 void Gate::eval()
 {
+    if (!impl)
+    {
+        std::cerr << "Gate is empty" << std::endl;
+        return;
+    }
     switch (IMPL->gateType())
     {
         case Gate::INV:
@@ -1362,6 +1382,31 @@ void Cell::breakOutputConnection(const std::string &pinName)
     if (!impl)
         return;
     IMPL->breakOutputConnection(pinName);
+}
+
+void Cell::eval()
+{
+    if (gateType() != CustomGate)
+        Gate::eval();
+    else 
+    {
+        std::string typeLower(type());
+        std::transform(typeLower.begin(), typeLower.end(), typeLower.begin(), ::tolower);
+        if(typeLower.substr(0, 4) == "mux2")
+        {
+            Signal s = input("S").value();
+            if(s == Signal(0))
+                setValue(input("A").value());
+            else if(s == Signal(1))
+                setValue(input("B").value());
+            else 
+                setValue(s);
+        }
+        else
+        {
+            std::cerr << "WARNING:Cell:eval(): Function is not handled" << std::endl;
+        }
+    }
 }
 #undef IMPL
 
@@ -2692,7 +2737,7 @@ Wire Node::toWire() const
 
 Gate Node::toGate() const
 {
-    if (impl && impl->isGate())
+    if (impl && (impl->isGate() || impl->isCell()))
         return Gate(((GatePrivate*)impl));
     return Gate();
 }

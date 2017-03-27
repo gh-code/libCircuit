@@ -21,9 +21,9 @@ class EDAUtils
         static void levelize(const Circuit &circuit);
 
         /**
-         * Levelize Circuit(sequential/combinational) and feedback the levelized Gates
+         * Levelize Circuit(sequential/combinational) and feedback the levelized Gates/Cells
          * @param Circuit & : circuit object
-         * @param std::vector<Gate> & : an Gate container
+         * @param std::vector<Gate> & : an Gate/Cell container
          *
          * Example:
          *  Circuit c17("c17.v");
@@ -31,18 +31,6 @@ class EDAUtils
          *  EDAUtils::orderGateByLevel(c17, gateList);
          */
         static void orderByLevel(const Circuit &circuit, std::vector<Gate> &orderedList);
-
-        /**
-         * Levelize Circuit(sequential/combinational) and feedback the levelized Cell
-         * @param Circuit & : circuit object
-         * @param std::vector<Cell> & : an Cell container
-         *
-         * Example:
-         *  Circuit c17("c17.v");
-         *  std::vector<Cell> cellList;
-         *  EDAUtils::orderCellByLevel(c17, cellList);
-         */
-        static void orderByLevel(const Circuit &circuit, std::vector<Cell> &orderedList);
 
         static void removeAllDFF(Circuit &circuit);
        

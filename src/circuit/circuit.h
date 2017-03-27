@@ -42,6 +42,7 @@ public:
     Signal operator&= (const Signal&);
     Signal operator| (const Signal&);
     Signal operator|= (const Signal&);
+    bool operator== (const Signal&);
     Signal operator~ ();
     Signal operator! ();
     friend std::ostream& operator<< (std::ostream&, const Signal&);
@@ -106,6 +107,9 @@ public:
     bool isCell() const;
     bool isModule() const;
     bool isCircuit() const;
+    
+    void setInternal(bool);
+    bool isInternal() const;
 
     bool isNull() const;
     void clear();
@@ -245,6 +249,7 @@ public:
 
     void breakOutputConnection(const std::string &pinName);
     // Overridden from Node
+    void eval();
     inline Node::NodeType nodeType() const { return CellNode; }
 
 private:
