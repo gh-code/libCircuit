@@ -2282,7 +2282,9 @@ static void handleInputCallByOrder(Module &module, Gate &gate, const std::string
     }
     else
     {
-        Wire w = module.createWire(from);
+        Wire w = module.wire(from);
+        if (w.isNull())
+            w = module.createWire(from);
         p.connect(Node::dir2str(Node::Direct::left), w);
         gate.connectInput((*counter), w);
         //gate.connectInput((*counter), p);
@@ -2308,7 +2310,9 @@ static void handleOutputCallByOrder(Module &module, Gate &gate, const std::strin
     }
     else
     {
-        Wire w = module.createWire(from);
+        Wire w = module.wire(from);
+        if (w.isNull())
+            w = module.createWire(from);
         p.connect(Node::dir2str(Node::Direct::right), w);
         gate.connectOutput((*counter), w);
         //gate.connectOutput((*counter), p);
@@ -2581,7 +2585,9 @@ void Circuit::load(std::fstream &infile, const std::string &path, CellLibrary &l
                         }
                         else
                         {
-                            Wire w = module.createWire(from);
+                            Wire w = module.wire(from);
+                            if (w.isNull())
+                                w = module.createWire(from);
                             switch (p.type())
                             {
                                 case Port::Input:
