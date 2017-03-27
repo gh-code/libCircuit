@@ -33,6 +33,7 @@ public:
     virtual ~NodePrivate();
 
     std::string nodeName() const { return name; }
+    void setName(const std::string &name);
     Signal nodeValue() const { return value; }
     void setNodeValue(Signal &v) { value = v; }
 
@@ -93,6 +94,7 @@ public:
 
     Port::PortType type;
     // Reimplemented from NodePrivate
+    NodePrivate* cloneNode(bool deep = true);
     Node::NodeType nodeType() const { return Node::PortNode; }
 };
 
@@ -116,8 +118,6 @@ public:
     ~GatePrivate();
 
     Gate::GateType gateType() const { return type; }
-
-    void setName(const std::string &name);
 
     // Reimplemented from NodePrivate
     NodePrivate* cloneNode(bool deep = true);
@@ -551,6 +551,11 @@ void NodePrivate::connectOutput(size_t pin, NodePrivate *targ)
     targ->ref.ref();
 }
 
+void NodePrivate::setName(const std::string &name_)
+{
+    name = name_;
+}
+
 /**************************************************************
  *
  * Node
@@ -731,6 +736,13 @@ std::string Node::nodeName() const
     return IMPL->name;
 }
 
+void Node::setName(const std::string &name)
+{
+    if (!impl)
+        return;
+    IMPL->setName(name);
+}
+
 Node::NodeType Node::nodeType() const
 {
     if (!impl)
@@ -837,6 +849,19 @@ PortPrivate::PortPrivate(CircuitPrivate *c, NodePrivate* p, const std::string &n
 
 PortPrivate::~PortPrivate()
 {
+}
+
+PortPrivate::PortPrivate(PortPrivate* n, bool deep)
+    : NodePrivate(n, deep)
+{
+}
+
+NodePrivate* PortPrivate::cloneNode(bool deep)
+{
+    NodePrivate *p = new PortPrivate(this, deep);
+    // We are not interested in this node
+    p->ref.deref();
+    return p;
 }
 
 /**************************************************************
@@ -971,11 +996,6 @@ NodePrivate* GatePrivate::cloneNode(bool deep)
     return p;
 }
 
-void GatePrivate::setName(const std::string &name_)
-{
-    name = name_;
-}
-
 /**************************************************************
  *
  * Gate
@@ -1015,13 +1035,6 @@ Gate& Gate::operator=(const Gate &x)
 //         return std::string();
 //     return IMPL->nodeName();
 // }
-
-void Gate::setName(const std::string &name)
-{
-    if (!impl)
-        return;
-    IMPL->setName(name);
-}
 
 int Gate::level() const
 {
@@ -2269,7 +2282,10 @@ static void handleInputCallByOrder(Module &module, Gate &gate, const std::string
     }
     else
     {
-        gate.connectInput((*counter), p);
+        Wire w = module.createWire(from);
+        p.connect(Node::dir2str(Node::Direct::left), w);
+        gate.connectInput((*counter), w);
+        //gate.connectInput((*counter), p);
         (*counter)++;
     }
 }
@@ -2292,7 +2308,10 @@ static void handleOutputCallByOrder(Module &module, Gate &gate, const std::strin
     }
     else
     {
-        gate.connectOutput((*counter), p);
+        Wire w = module.createWire(from);
+        p.connect(Node::dir2str(Node::Direct::right), w);
+        gate.connectOutput((*counter), w);
+        //gate.connectOutput((*counter), p);
         (*counter)++;
     }
 }
@@ -2560,7 +2579,22 @@ void Circuit::load(std::fstream &infile, const std::string &path, CellLibrary &l
                                 handleOtherExpr(module, cell, to, from);
                             }
                         }
-                        else { cell.connect(to, p); }
+                        else
+                        {
+                            Wire w = module.createWire(from);
+                            switch (p.type())
+                            {
+                                case Port::Input:
+                                    p.connect(Node::dir2str(Node::Direct::left), w);
+                                    break;
+                                case Port::Output:
+                                    p.connect(Node::dir2str(Node::Direct::right), w);
+                                    break;
+                                default: ;/* do nothing */
+                            }
+                            cell.connect(to, w);
+                            //cell.connect(to, p);
+                        }
                     }
                 }
                 module.addCell(cell);

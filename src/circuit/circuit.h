@@ -100,6 +100,7 @@ public:
     inline std::string name() const { return nodeName(); }
     std::string nodeName() const;
     NodeType nodeType() const;
+    void setName(const std::string &name);
 
     bool isPort() const;
     bool isWire() const;
@@ -194,7 +195,6 @@ public:
     Gate(const Gate&);
     Gate& operator= (const Gate&);
 
-    void setName(const std::string &name);
     int level() const;
     void setLevel(int level);
     Gate::GateType gateType() const;
