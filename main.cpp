@@ -101,7 +101,7 @@ int main(int argc, char *argv[])
     printCircuitInfo(circuit);
     cout << std::string(79, '-') << endl;
 
-    vector<Gate> temp;
+    vector<Cell> temp;
     EDAUtils::orderByLevel(circuit, temp);
     for(size_t i = 0; i < circuit.topModule().gateSize(); i++)
     {
@@ -216,7 +216,7 @@ int main(int argc, char *argv[])
     }
     for (size_t i = 0; i < temp.size(); i++)
     {
-        Cell cell = temp[i].toCell();
+        Cell cell = temp[i];
         cell.eval();
         cell.output(0).eval();
         cout << "Cell: " << cell.name() << "  Value = " << cell.value() << endl;
