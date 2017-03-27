@@ -1540,21 +1540,29 @@ CellPrivate* ModulePrivate::cell(size_t i)
 
 PortPrivate* ModulePrivate::port(const std::string &portName)
 {
+    if (ports.find(portName) == ports.end())
+        return 0;
     return ports[portName];
 }
 
 WirePrivate* ModulePrivate::wire(const std::string &wireName)
 {
+    if (wires.find(wireName) == wires.end())
+        return 0;
     return wires[wireName];
 }
 
 GatePrivate* ModulePrivate::gate(const std::string &gateName)
 {
+    if (gates.find(gateName) == gates.end())
+        return 0;
     return gates[gateName];
 }
 
 CellPrivate* ModulePrivate::cell(const std::string &cellName)
 {
+    if (cells.find(cellName) == cells.end())
+        return 0;
     return cells[cellName];
 }
 
