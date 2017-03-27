@@ -1540,21 +1540,29 @@ CellPrivate* ModulePrivate::cell(size_t i)
 
 PortPrivate* ModulePrivate::port(const std::string &portName)
 {
+    if (ports.find(portName) == ports.end())
+        return 0;
     return ports[portName];
 }
 
 WirePrivate* ModulePrivate::wire(const std::string &wireName)
 {
+    if (wires.find(wireName) == wires.end())
+        return 0;
     return wires[wireName];
 }
 
 GatePrivate* ModulePrivate::gate(const std::string &gateName)
 {
+    if (gates.find(gateName) == gates.end())
+        return 0;
     return gates[gateName];
 }
 
 CellPrivate* ModulePrivate::cell(const std::string &cellName)
 {
+    if (cells.find(cellName) == cells.end())
+        return 0;
     return cells[cellName];
 }
 
@@ -2284,8 +2292,10 @@ static void handleInputCallByOrder(Module &module, Gate &gate, const std::string
     {
         Wire w = module.wire(from);
         if (w.isNull())
+        {
             w = module.createWire(from);
-        p.connect(Node::dir2str(Node::Direct::left), w);
+            p.connect(Node::dir2str(Node::Direct::left), w);
+        }
         gate.connectInput((*counter), w);
         //gate.connectInput((*counter), p);
         (*counter)++;
@@ -2312,8 +2322,10 @@ static void handleOutputCallByOrder(Module &module, Gate &gate, const std::strin
     {
         Wire w = module.wire(from);
         if (w.isNull())
+        {
             w = module.createWire(from);
-        p.connect(Node::dir2str(Node::Direct::right), w);
+            p.connect(Node::dir2str(Node::Direct::right), w);
+        }
         gate.connectOutput((*counter), w);
         //gate.connectOutput((*counter), p);
         (*counter)++;
@@ -2587,16 +2599,18 @@ void Circuit::load(std::fstream &infile, const std::string &path, CellLibrary &l
                         {
                             Wire w = module.wire(from);
                             if (w.isNull())
-                                w = module.createWire(from);
-                            switch (p.type())
                             {
-                                case Port::Input:
-                                    p.connect(Node::dir2str(Node::Direct::left), w);
-                                    break;
-                                case Port::Output:
-                                    p.connect(Node::dir2str(Node::Direct::right), w);
-                                    break;
-                                default: ;/* do nothing */
+                                w = module.createWire(from);
+                                switch (p.type())
+                                {
+                                    case Port::Input:
+                                        p.connect(Node::dir2str(Node::Direct::left), w);
+                                        break;
+                                    case Port::Output:
+                                        p.connect(Node::dir2str(Node::Direct::right), w);
+                                        break;
+                                    default: ;/* do nothing */
+                                }
                             }
                             cell.connect(to, w);
                             //cell.connect(to, p);
