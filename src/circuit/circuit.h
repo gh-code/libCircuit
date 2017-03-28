@@ -4,6 +4,7 @@
 #include <iostream>
 #include <string>
 #include <map>
+#include <vector>
 #include <list>
 #include <iterator>
 
@@ -35,6 +36,11 @@ public:
         Z = 2,  // High Impedance
         X = 3,  // Unknown
         Last
+    };
+    enum Transition {
+        Fall,
+        Rise,
+        None
     };
     Signal();
     Signal(unsigned s);
@@ -230,14 +236,15 @@ public:
     //double slew() const;
     std::string function() const;
     double inputCapacitance(size_t index) const;
-    double inputCapacitance(const std::string &iPinName) const;
+    double inputCapacitance(const std::string &pinIn) const;
     double inputCapacitanceRise(size_t index) const;
-    double inputCapacitanceRise(const std::string &iPinName) const;
+    double inputCapacitanceRise(const std::string &pinIn) const;
     double inputCapacitanceFall(size_t index) const;
-    double inputCapacitanceFall(const std::string &iPinName) const;
-    double outputMaxCapacitance(const std::string &oPinName) const;
-    double outputMaxTransition(const std::string &oPinName) const;
-    double delay(const std::string &iPinName, const std::string &oPinName, const std::string &trans, double inputSlew, double outputLoad) const;
+    double inputCapacitanceFall(const std::string &pinIn) const;
+    double outputMaxCapacitance(const std::string &pinOut) const;
+    double outputMaxTransition(const std::string &pinOut) const;
+    double delay(const std::string &pinIn, const std::string &pinOut, Signal::Transition trans, double inputSlew, double outputLoad) const;
+    double slew(const std::string &pinIn, const std::string &pinOut, Signal::Transition trans, double inputSlew, double outputLoad) const;
 
     std::string inputPinName(size_t i);
     std::string outputPinName(size_t i);
@@ -245,14 +252,15 @@ public:
 
     void setArea(double);
     void setFunction(const std::string&);
-    void setInputCapacitance(const std::string&, double cap);
-    void setInputCapacitanceRise(const std::string&, double cap);
-    void setInputCapacitanceFall(const std::string&, double cap);
+    void setInputCapacitance(const std::string&, double);
+    void setInputCapacitanceRise(const std::string&, double);
+    void setInputCapacitanceFall(const std::string&, double);
     void setOutputMaxCapacitance(const std::string&, double) const;
     void setOutputMaxTransition(const std::string&, double) const;
 
     void addInputPinName(const std::string&);
     void addOutputPinName(const std::string&);
+    void addTimingTable(const std::string&, const std::string&, const std::string&, const std::string&, Signal::Transition, std::vector<double>&, std::vector<double>&, std::vector<std::vector<double> >&);
 
     void breakOutputConnection(const std::string &pinName);
     // Overridden from Node

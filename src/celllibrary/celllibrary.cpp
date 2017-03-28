@@ -2,7 +2,9 @@
 #include "circuit.h"
 #include <iostream>
 #include <fstream>
+#include <sstream>
 #include <string>
+#include <cassert>
 #include <qatomic.h>
 #include "../parser/liberty/driver.h"
 #include "../parser/liberty/expression.h"
@@ -18,7 +20,6 @@ public:
     Cell cell(const std::string&) const;
 
     bool load(std::fstream&, const std::string &path);
-
 
     std::string name;
     std::string time_unit;
@@ -68,6 +69,100 @@ CellLibraryPrivate::CellLibraryPrivate(const std::string &path) : isDefault(fals
         return;
     }
     load(infile, path);
+}
+
+static void tableRowStringToDouble(std::vector<double> *out, const std::string &data)
+{
+    std::istringstream iss(data);
+    double item;
+    while (iss >> item)
+    {
+        out->push_back(item);
+        if (iss.peek() == ',')
+            iss.ignore();
+    }
+    while (iss);
+}
+
+static void handleTimingTable(LibertyContext &liberty, Cell &cell, LNPin *pin, const std::string &type, Signal::Transition trans, LNTiming *timing, LNTimingTable* timingTable)
+{
+    std::vector<std::string> &t_table = timingTable->table;
+    std::vector<double> x;
+    std::vector<double> y;
+    LNLuTableTemplate &tableTemplate = liberty.lu_table_templates[timingTable->lu_table_template];
+    if (tableTemplate.variable_1 == "input_net_transition" &&
+        tableTemplate.variable_2 == "total_output_net_capacitance")
+    {
+        // NanGate
+        tableRowStringToDouble(&x, tableTemplate.index_2);
+        tableRowStringToDouble(&y, tableTemplate.index_1);
+
+        std::vector<std::vector<double> > table;
+        for (size_t i = 0; i < y.size(); i++)
+        {
+            std::vector<double> temp;
+            tableRowStringToDouble(&temp, t_table[i]);
+            assert(x.size() == temp.size());
+            table.push_back(temp);
+        }
+
+        cell.addTimingTable(type,
+            pin->name,
+            timing->related_pin,
+            timing->timing_sense,
+            trans,
+            x, y, table);
+    }
+    else if (tableTemplate.variable_1 == "total_output_net_capacitance" &&
+             tableTemplate.variable_2 == "input_net_transition")
+    {
+        // ISPD
+        tableRowStringToDouble(&x, tableTemplate.index_1);
+        tableRowStringToDouble(&y, tableTemplate.index_2);
+
+        std::vector<std::vector<double> > table;
+        for (size_t i = 0; i < y.size(); i++)
+        {
+            std::vector<double> temp;
+            table.push_back(temp);
+        }
+
+        for (size_t i = 0; i < y.size(); i++)
+        {
+            std::vector<double> temp;
+            tableRowStringToDouble(&temp, t_table[i]);
+            for (size_t j = 0; j < y.size(); j++)
+                table[j].push_back(temp[j]);
+        }
+
+        cell.addTimingTable(type,
+            pin->name,
+            timing->related_pin,
+            timing->timing_sense,
+            trans,
+            x, y, table);
+    }
+    else
+    {
+        // temporarily ignore Tristate_Disable and other things
+    }
+}
+
+static void handleTimings(LibertyContext &liberty, Cell &cell, LNPin *pin)
+{
+    for (size_t j = 0; j < pin->timings.size(); j++)
+    {
+        LNTiming *timing = pin->timings[j];
+        if (timing->cell_fall)
+            handleTimingTable(liberty, cell, pin, "delay", Signal::Fall, timing, timing->cell_fall);
+        if (timing->cell_rise)
+            handleTimingTable(liberty, cell, pin, "delay", Signal::Rise, timing, timing->cell_rise);
+        if (timing->fall_transition)
+            handleTimingTable(liberty, cell, pin, "trans", Signal::Fall, timing, timing->fall_transition);
+        if (timing->rise_transition)
+            handleTimingTable(liberty, cell, pin, "trans", Signal::Rise, timing, timing->rise_transition);
+        // otherwise, temporarily ignore
+    }
 }
 
 bool CellLibraryPrivate::load(std::fstream &infile, const std::string &path)
@@ -124,6 +219,7 @@ bool CellLibraryPrivate::load(std::fstream &infile, const std::string &path)
                 cell.setOutputMaxCapacitance(pin->name, pin->max_capacitance);
                 cell.setOutputMaxTransition(pin->name, pin->max_transition);
                 cell.addOutputPinName(pin->name);
+                handleTimings(liberty, cell, pin);
             }
             else if (pin->direction == "internal")
             { /* do nothing */ }

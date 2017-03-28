@@ -1,10 +1,11 @@
 #include "circuit.h"
 #include "celllibrary.h"
+#include "interpolate.h"
 #include <iostream>
 #include <fstream>
 #include <sstream>
-#include <algorithm>
 #include <set>
+#include <algorithm>
 #include <qatomic.h>
 #include "../parser/verilog/driver.h"
 #include "../parser/verilog/expression.h"
@@ -19,6 +20,8 @@ static std::string _dir2str(Node::Direct dir)
 }
 
 const static std::string SCOPE_KEY = ":";
+
+typedef std::map<std::string,std::map<std::string,std::map<Signal::Transition,interpolate::interp2d*> > > TimingTable;
 
 /**************************************************************
  *
@@ -80,6 +83,9 @@ public:
     std::vector<std::string> outputNames;
     bool hasParent : 1;
     bool isInternal;
+
+    TimingTable delayTables;
+    TimingTable transTables;
 
     std::string name;
     Signal value;
@@ -1151,6 +1157,8 @@ CellPrivate::CellPrivate(CellPrivate* n, bool deep)
      inputCapacitancesFall = n->inputCapacitancesFall;
      outputMaxCapacitance = n->outputMaxCapacitance;
      outputMaxTransition = n->outputMaxTransition;
+     delayTables = n->delayTables;
+     transTables = n->transTables;
      pinTypes = n->pinTypes;
  }
 
@@ -1451,6 +1459,8 @@ void Cell::breakOutputConnection(const std::string &pinName)
 
 void Cell::eval()
 {
+    if (!impl)
+        return;
     if (gateType() != CustomGate)
         Gate::eval();
     else 
@@ -1473,6 +1483,47 @@ void Cell::eval()
         }
     }
 }
+
+void Cell::addTimingTable(const std::string &type_,
+    const std::string &pin, const std::string &relatedPin,
+    const std::string &timingSense, Signal::Transition transition,
+    std::vector<double> &x, std::vector<double> &y,
+    std::vector<std::vector<double> > &table)
+{
+    if (!impl)
+        return;
+    (void) timingSense; // No use
+    if (type_ == "delay")
+        IMPL->delayTables[pin][relatedPin][transition] = new interpolate::interp2d(x, y, table);
+    else if (type_ == "trans")
+        IMPL->transTables[pin][relatedPin][transition] = new interpolate::interp2d(x, y, table);
+    else
+        std::cerr << "Weird things happened on Cell::addTimingTable()" << std::endl;
+}
+
+double Cell::delay(const std::string &pinIn, const std::string &pinOut, Signal::Transition trans, double inputSlew, double outputLoad) const
+{
+    if (!impl)
+        return 0.0;
+    if ((IMPL->delayTables.find(pinOut) == IMPL->delayTables.end()) ||
+        (IMPL->delayTables[pinOut].find(pinIn) == IMPL->delayTables[pinOut].end()) ||
+        (IMPL->delayTables[pinOut][pinIn].find(trans) == IMPL->delayTables[pinOut][pinIn].end()))
+        return 0.0;
+    return IMPL->delayTables[pinOut][pinIn][trans]->at(outputLoad, inputSlew);
+}
+
+double Cell::slew(const std::string &pinIn, const std::string &pinOut, Signal::Transition trans, double inputSlew, double outputLoad) const
+{
+    if (!impl)
+        return 0.0;
+    if ((IMPL->transTables.find(pinOut) == IMPL->transTables.end()) ||
+        (IMPL->transTables[pinOut].find(pinIn) == IMPL->transTables[pinOut].end()) ||
+        (IMPL->transTables[pinOut][pinIn].find(trans) == IMPL->transTables[pinOut][pinIn].end()))
+        return 0.0;
+    return IMPL->transTables[pinOut][pinIn][trans]->at(outputLoad, inputSlew);
+}
+
+
 #undef IMPL
 
 /**************************************************************
