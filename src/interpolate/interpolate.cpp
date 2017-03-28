@@ -163,8 +163,8 @@ public:
 
     double formula(double x, double y, size_t pos_x1, size_t pos_y1)
     {
-        size_t pos_x0 = pos_x1 - 1;
-        size_t pos_y0 = pos_y1 - 1;
+        size_t pos_x0 = (pos_x1 > 0 ? pos_x1 - 1 : pos_x1);
+        size_t pos_y0 = (pos_y1 > 0 ? pos_y1 - 1 : pos_y1);
         double x0 = (*vx)[pos_x0];
         double y0 = (*vy)[pos_y0];
         double x1 = (*vx)[pos_x1];

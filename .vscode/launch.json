@@ -28,7 +28,7 @@
                 "program": "${workspaceRoot}/circuit.exe",
                 "MIMode": "gdb",
                 "miDebuggerPath": "C:/MinGW/bin/gdb.exe",
-                "args": ["gate.v"],
+                "args": ["c17.v"],
                 "setupCommands": [
                     {
                         "description": "Enable pretty-printing for gdb",
