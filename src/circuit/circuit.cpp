@@ -244,6 +244,7 @@ public:
 
     void setTopModule(ModulePrivate *module);
 
+    std::string path;
     ModulePrivate *topModule;
     std::map<std::string,ModulePrivate*> modules;
     std::vector<std::string> moduleNames;
@@ -2739,6 +2740,8 @@ void Circuit::load(std::fstream &infile, const std::string &path, CellLibrary &l
             impl = 0;
             return;
         }
+
+        IMPL->path = path;
     }
 }
 
@@ -2868,6 +2871,13 @@ Pattern Circuit::output() const
     for (size_t i = 0; i < outputSize(); i++)
         oss << outputPort(i).value();
     return oss.str();
+}
+
+std::string Circuit::filePath() const
+{
+    if (!impl)
+        return "";
+    return IMPL->path;
 }
 
 #undef IMPL

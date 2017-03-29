@@ -384,6 +384,8 @@ public:
 
     Module createModule(const std::string &name);
 
+    std::string filePath() const;
+
     void load(std::fstream&, const std::string&);
     void load(std::fstream&, const std::string&, CellLibrary &lib);
 
