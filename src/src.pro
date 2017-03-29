@@ -5,11 +5,12 @@ DESTDIR = ../lib
 CONFIG += staticlib debug
 CONFIG -= debug_and_release debug_and_release_target
 
-INCLUDEPATH += circuit celllibrary
+INCLUDEPATH += circuit celllibrary interpolate
 
 include(parser/verilog/verilog.pri)
 include(parser/liberty/liberty.pri)
 include(celllibrary/celllibrary.pri)
+include(interpolate/interpolate.pri)
 include(circuit/circuit.pri)
 include(EDAUtils/EDAUtils.pri)
 
