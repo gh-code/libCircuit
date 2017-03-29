@@ -1509,7 +1509,7 @@ double Cell::delay(const std::string &pinIn, const std::string &pinOut, Signal::
         (IMPL->delayTables[pinOut].find(pinIn) == IMPL->delayTables[pinOut].end()) ||
         (IMPL->delayTables[pinOut][pinIn].find(trans) == IMPL->delayTables[pinOut][pinIn].end()))
         return 0.0;
-    return IMPL->delayTables[pinOut][pinIn][trans]->at(outputLoad, inputSlew);
+    return (*(IMPL->delayTables[pinOut][pinIn][trans]))(outputLoad, inputSlew);
 }
 
 double Cell::slew(const std::string &pinIn, const std::string &pinOut, Signal::Transition trans, double inputSlew, double outputLoad) const
@@ -1520,7 +1520,7 @@ double Cell::slew(const std::string &pinIn, const std::string &pinOut, Signal::T
         (IMPL->transTables[pinOut].find(pinIn) == IMPL->transTables[pinOut].end()) ||
         (IMPL->transTables[pinOut][pinIn].find(trans) == IMPL->transTables[pinOut][pinIn].end()))
         return 0.0;
-    return IMPL->transTables[pinOut][pinIn][trans]->at(outputLoad, inputSlew);
+    return (*(IMPL->transTables[pinOut][pinIn][trans]))(outputLoad, inputSlew);
 }
 
 
