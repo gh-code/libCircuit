@@ -13,6 +13,7 @@ using namespace std;
 const std::string EDAUTILS_PPO_PREFIX = "PPO:";
 const std::string EDAUTILS_PPI_PREFIX = "PPI:";
 const std::string EDAUTILS_SCOPE_SIGN = ":";
+const std::string EDAUTILS_CYCLE_SIGN = "@";
 const std::string EDAUTILS_SIGN = "EDAUTILS";
 const std::string EDAUTILS_PORT_SIGN = "PORT";
 const std::string EDAUTILS_WIRE_SIGN = "WIRE";
@@ -385,6 +386,7 @@ bool EDAUtils::mux_connect_interal(Circuit &circuit, Cell &target, CellLibrary &
             if(outNode.isWire() || outNode.isPort())
             {
                 Cell newCell = library.cell("MUX2_X1");
+                /* circuit.topModule().setNodeName(newCell, _genCellName(circuit)); */
                 newCell.setName(_genCellName(circuit));
                 
                 target.breakOutputConnection(target.outputPinName(out));
@@ -430,7 +432,126 @@ bool EDAUtils::insertCell2AllCellOutputs(Circuit &circuit, CellLibrary &library,
     return true;
 }
 
-/* void EDAUtils::timeFrameExpansion(Circuit &circuit, unsigned cycles) */
-/* { */
+void EDAUtils::timeFrameExpansion(Circuit &circuit, CellLibrary &library, const unsigned cycles, vector<Circuit> &maintains)
+{
+    if(cycles == 1 || cycles == 0)
+        return;
+    else if(cycles > 100)
+    {
+        cout << "Cannot extend (>100): " << cycles << " cycles" << endl;
+        return;
+    }
     
-/* } */
+    string filePath = circuit.filePath();
+    
+    unsigned e_cycles = cycles - 1;
+
+    removeAllDFF(circuit);
+    maintains.push_back(circuit);
+    for(unsigned e = 0; e < e_cycles; e++)
+    {
+        Circuit t;
+        maintains.push_back(t);
+    }
+
+    Module topModule = circuit.topModule();
+    for(unsigned e = 1; e <= e_cycles; e++)
+    {
+        Circuit &circuit_t = maintains[e];
+        circuit_t.load(filePath, library);
+        
+        removeAllDFF(circuit_t);
+        Module topModule_t = circuit_t.topModule();
+        
+        // traverse all port / wire / gate / cell to replace name
+        for(size_t i = 0; i < topModule_t.portSize(); i++)
+        {
+            Port p = topModule_t.port(i);
+            p.replaceName(topModule_t, p.name() + EDAUTILS_CYCLE_SIGN + std::to_string(e));
+        }
+        for(size_t i = 0; i < topModule_t.wireSize(); i++)
+        {
+            Wire w = topModule_t.wire(i);
+            w.replaceName(topModule_t, w.name() + EDAUTILS_CYCLE_SIGN + std::to_string(e));
+        }
+        for(size_t i = 0; i < topModule_t.gateSize(); i++)
+        {
+            Gate g = topModule_t.gate(i);
+            g.replaceName(topModule_t, g.name() + EDAUTILS_CYCLE_SIGN + std::to_string(e));
+        }
+        for(size_t i = 0; i < topModule_t.cellSize(); i++)
+        {
+            Cell c = topModule_t.cell(i);
+            c.replaceName(topModule_t, c.name() + EDAUTILS_CYCLE_SIGN + std::to_string(e));
+        }
+
+        for(size_t i = 0; i < circuit.PPOSize(); i++)
+        {
+            Port prev_ppo = circuit.PPO(i);
+            Port next_ppi = circuit_t.PPI(i);
+
+            Node prev_wire = prev_ppo.input(0);
+            Node next_wire = next_ppi.output(0);
+            
+            vector<int> inputPing;
+            vector<string> inputPinc;
+            vector<Node> nodes;
+            for(size_t j = 0; j < next_wire.outputSize(); j++)
+            {
+                Node node = next_wire.output(j);
+           
+                size_t k = 0;
+                for(; k < node.inputSize(); k++)
+                    if(node.input(k).name() == next_wire.name())
+                        break;
+                if(k >= node.inputSize())
+                    cerr << "EDAUtils::timeFrameExpansion err: can not find the matched wire" << endl;
+
+                if(node.isGate())
+                    inputPing.push_back(k);
+                else if(node.isCell())
+                    inputPinc.push_back(node.toCell().inputPinName(k));
+
+                nodes.push_back(next_wire.output(j));
+            }
+
+            topModule.removeNode(prev_ppo);
+            topModule_t.removeNode(next_ppi);
+            topModule_t.removeNode(next_wire);
+
+            for(size_t j = 0; j < nodes.size(); j++)
+            {
+                Node node = nodes[j];
+                if(node.isGate())
+                    node.connectInput(inputPing[j], prev_ppo.input(0));
+                if(node.isCell())
+                    node.connect(inputPinc[j], prev_ppo.input(0));
+            }
+
+        }
+        
+        for(size_t i = 0; i < topModule_t.portSize(); i++)
+        {
+            Port p = topModule_t.port(i);
+            topModule.pushNode(p);
+        }
+        for(size_t i = 0; i < topModule_t.wireSize(); i++)
+        {
+            Wire w = topModule_t.wire(i);
+            topModule.pushNode(w);
+        }
+        for(size_t i = 0; i < topModule_t.gateSize(); i++)
+        {
+            Gate g = topModule_t.gate(i);
+            topModule.pushNode(g);
+        }
+        for(size_t i = 0; i < topModule_t.cellSize(); i++)
+        {
+            Cell c = topModule_t.cell(i);
+            topModule.pushNode(c);
+        }
+
+    }
+}
+
+

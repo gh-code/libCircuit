@@ -103,10 +103,12 @@ public:
 
     Node cloneNode(bool deep = true) const;
 
+    void replaceName(Module &module, const std::string &name);
+
     inline std::string name() const { return nodeName(); }
     std::string nodeName() const;
     NodeType nodeType() const;
-    void setName(const std::string &name);
+    /* void setName(const std::string &name); */
 
     bool isPort() const;
     bool isWire() const;
@@ -229,6 +231,9 @@ public:
     Cell& operator= (const Cell&);
 
     //Gate::GateType gateType() const;
+
+    // only used in the first begin of cell creation
+    void setName(const std::string &name);
     std::string type() const;
 
     double area() const;
@@ -329,6 +334,10 @@ public:
     Wire createWire(const std::string&);
     Gate createGate(const std::string&, Gate::GateType);
     Cell createCell(const std::string&, const std::string&);
+
+    void setNodeName(Node &, const std::string &name);
+
+    bool pushNode(Node &);
     bool removeNode(Node &node);
 
 private:
@@ -384,6 +393,9 @@ public:
 
     Module createModule(const std::string &name);
 
+    std::string filePath() const;
+
+    void load(const std::string &path, CellLibrary &lib);
     void load(std::fstream&, const std::string&);
     void load(std::fstream&, const std::string&, CellLibrary &lib);
 

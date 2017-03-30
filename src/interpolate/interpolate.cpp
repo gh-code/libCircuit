@@ -156,15 +156,46 @@ public:
     {
         std::vector<double>::iterator it = std::lower_bound((*vx).begin(), (*vx).end(), x);
         std::vector<double>::iterator jt = std::lower_bound((*vy).begin(), (*vy).end(), y);
+        if (it == (*vx).end()) it -= 1;
+        if (jt == (*vy).end()) jt -= 1;
         size_t pos_x = it - (*vx).begin();
         size_t pos_y = jt - (*vy).begin();
-        return formula(x, y, pos_x, pos_y);
+        if (pos_x == 0) { pos_x = 1; }
+        if (pos_y == 0) { pos_y = 1; }
+        return formula2(x, y, pos_x, pos_y);
+    }
+
+    double formula2(double x, double y, size_t pos_x1, size_t pos_y1)
+    {
+        size_t pos_x0 = pos_x1 - 1;
+        size_t pos_y0 = pos_y1 - 1;
+        double x0 = (*vx)[pos_x0];
+        double y0 = (*vy)[pos_y0];
+        double x1 = (*vx)[pos_x1];
+        double y1 = (*vy)[pos_y1];
+        double wx = (x - x0) / (x1 - x0);
+        double wy = (y - y0) / (y1 - y0);
+        // std::cout << "           "<< "(X) " << x0 << "(X) " << x1 << std::endl;
+        // std::cout << "(Y) " << y0 << "(Z) " << (*vz)[pos_y0][pos_x0] << "(Z) " << (*vz)[pos_y0][pos_x1] << std::endl;
+        // std::cout << "(Y) " << y1 << "(Z) " << (*vz)[pos_y1][pos_x0] << "(Z) " << (*vz)[pos_y1][pos_x1] << std::endl;
+        double A = (1 - wx) * (1 - wy);
+        double B = wx * (1 - wy);
+        double C = (1 - wx) * wy;
+        double D = wx * wy;
+        // std::cout << "A = " << A << std::endl;
+        // std::cout << "B = " << B << std::endl;
+        // std::cout << "C = " << C << std::endl;
+        // std::cout << "D = " << D << std::endl;
+        return A * (*vz)[pos_y0][pos_x0]
+             + B * (*vz)[pos_y0][pos_x1]
+             + C * (*vz)[pos_y1][pos_x0]
+             + D * (*vz)[pos_y1][pos_x1];
     }
 
     double formula(double x, double y, size_t pos_x1, size_t pos_y1)
     {
-        size_t pos_x0 = (pos_x1 > 0 ? pos_x1 - 1 : pos_x1);
-        size_t pos_y0 = (pos_y1 > 0 ? pos_y1 - 1 : pos_y1);
+        size_t pos_x0 = pos_x1 - 1;
+        size_t pos_y0 = pos_y1 - 1;
         double x0 = (*vx)[pos_x0];
         double y0 = (*vy)[pos_y0];
         double x1 = (*vx)[pos_x1];

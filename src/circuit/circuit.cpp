@@ -37,6 +37,8 @@ public:
 
     std::string nodeName() const { return name; }
     void setName(const std::string &name);
+    void replaceName(ModulePrivate *module, const std::string &name);
+
     Signal nodeValue() const { return value; }
     void setNodeValue(Signal &v) { value = v; }
 
@@ -188,8 +190,6 @@ public:
 
     PortPrivate* port(size_t i);
     WirePrivate* wire(size_t i);
-    
-    
     GatePrivate* gate(size_t i);
     CellPrivate* cell(size_t i);
     PortPrivate* port(const std::string &portName);
@@ -201,8 +201,21 @@ public:
     WirePrivate* createWire(const std::string &wireName);
     GatePrivate* createGate(const std::string &gateName, Gate::GateType);
     CellPrivate* createCell(const std::string &cellName, const std::string&);
-    bool removeNode(Node &node);
-    /* bool removeCell(const std::string &cellName); */
+
+    void setCellName(CellPrivate *, const std::string name);
+    void setGateName(GatePrivate *, const std::string name);
+    void setWireName(WirePrivate *, const std::string name);
+    void setPortName(PortPrivate *, const std::string name);
+
+    bool pushCell(CellPrivate* cell);
+    bool pushGate(GatePrivate* gate);
+    bool pushWire(WirePrivate* wire);
+    bool pushPort(PortPrivate* port);
+
+    bool removeCell(const std::string &cellName);
+    bool removeGate(const std::string &gateName);
+    bool removeWire(const std::string &wireName);
+    bool removePort(const std::string &portName);
 
     std::map<std::string,PortPrivate*> ports;
     std::map<std::string,WirePrivate*> wires;
@@ -222,10 +235,6 @@ public:
     std::vector<std::string> PPINames;
     std::vector<std::string> PPONames;
 private:
-    bool removeCell(const std::string &cellName);
-    bool removeGate(const std::string &gateName);
-    bool removeWire(const std::string &wireName);
-    bool removePort(const std::string &portName);
 };
 
 class CircuitPrivate : public NodePrivate
@@ -244,6 +253,7 @@ public:
 
     void setTopModule(ModulePrivate *module);
 
+    std::string path;
     ModulePrivate *topModule;
     std::map<std::string,ModulePrivate*> modules;
     std::vector<std::string> moduleNames;
@@ -317,6 +327,7 @@ NodePrivate* NodePrivate::cloneNode(bool deep)
     p->ref.deref();
     return p;
 }
+
 
 size_t NodePrivate::inputSize() const
 {
@@ -560,6 +571,19 @@ void NodePrivate::connectOutput(size_t pin, NodePrivate *targ)
     targ->ref.ref();
 }
 
+void NodePrivate::replaceName(ModulePrivate *module, const std::string &name)
+{
+    if (this->isCell())
+        module->setCellName((CellPrivate*)this, name);
+    else if (this->isGate())
+        module->setGateName((GatePrivate*)this, name);
+    else if (this->isWire())
+        module->setWireName((WirePrivate*)this, name);
+    else if (this->isPort())
+        module->setPortName((PortPrivate*)this, name);
+    this->name = name;
+}
+
 void NodePrivate::setName(const std::string &name_)
 {
     name = name_;
@@ -745,12 +769,19 @@ std::string Node::nodeName() const
     return IMPL->name;
 }
 
-void Node::setName(const std::string &name)
+void Node::replaceName(Module &module, const std::string &name)
 {
-    if (!impl)
+    if (!impl || module.isNull())
         return;
-    IMPL->setName(name);
+    IMPL->replaceName((ModulePrivate*)module.impl, name);
 }
+
+/* void Node::setName(const std::string &name) */
+/* { */
+/*     if (!impl) */
+/*         return; */
+/*     IMPL->setName(name); */
+/* } */
 
 Node::NodeType Node::nodeType() const
 {
@@ -1279,6 +1310,13 @@ Cell& Cell::operator=(const Cell &x)
     return (Cell&) Gate::operator=(x);
 }
 
+void Cell::setName(const std::string &name)
+{
+    if (!impl)
+        return;
+    IMPL->setName(name);
+}
+
 std::string Cell::type() const
 {
     if (!impl)
@@ -1479,7 +1517,8 @@ void Cell::eval()
         }
         else
         {
-            std::cerr << "WARNING:Cell:eval(): Function is not handled" << std::endl;
+
+            std::cerr << "WARNING:Cell:eval(): " << typeLower << " Function is not handled" << std::endl;
         }
     }
 }
@@ -1509,7 +1548,7 @@ double Cell::delay(const std::string &pinIn, const std::string &pinOut, Signal::
         (IMPL->delayTables[pinOut].find(pinIn) == IMPL->delayTables[pinOut].end()) ||
         (IMPL->delayTables[pinOut][pinIn].find(trans) == IMPL->delayTables[pinOut][pinIn].end()))
         return 0.0;
-    return IMPL->delayTables[pinOut][pinIn][trans]->at(outputLoad, inputSlew);
+    return (*(IMPL->delayTables[pinOut][pinIn][trans]))(outputLoad, inputSlew);
 }
 
 double Cell::slew(const std::string &pinIn, const std::string &pinOut, Signal::Transition trans, double inputSlew, double outputLoad) const
@@ -1520,7 +1559,7 @@ double Cell::slew(const std::string &pinIn, const std::string &pinOut, Signal::T
         (IMPL->transTables[pinOut].find(pinIn) == IMPL->transTables[pinOut].end()) ||
         (IMPL->transTables[pinOut][pinIn].find(trans) == IMPL->transTables[pinOut][pinIn].end()))
         return 0.0;
-    return IMPL->transTables[pinOut][pinIn][trans]->at(outputLoad, inputSlew);
+    return (*(IMPL->transTables[pinOut][pinIn][trans]))(outputLoad, inputSlew);
 }
 
 
@@ -1706,6 +1745,7 @@ PortPrivate* ModulePrivate::createPort(const std::string &portName, Port::PortTy
         default:
             return 0;
     }
+    portNames.push_back(portName);
     ports[portName] = p;
     return p;
 }
@@ -1722,18 +1762,177 @@ GatePrivate* ModulePrivate::createGate(const std::string &gateName, Gate::GateTy
     return w;
 }
 
-bool ModulePrivate::removeNode(Node &node)
+void ModulePrivate::setCellName(CellPrivate *cell, const std::string name)
 {
-    if(node.isCell())
-        return removeCell(node.name());
-    else if(node.isWire())
-        return removeWire(node.name());
-    else if(node.isPort())
-        return removePort(node.name());
-    else if(node.isGate())
-        return removeGate(node.name());
+    std::string origin = cell->name;
+    
+    CellPrivate *origin_cell = cells[origin];
+    if (origin_cell)
+    {
+        cells[name] = origin_cell;
+        cells.erase(origin);
+        std::replace(cellNames.begin(), cellNames.end(), origin, name);
+    }
     else
-        return false;
+        std::cerr << "setCellName fail:" << this->name  << ":" << origin << std::endl;
+
+}
+
+void ModulePrivate::setGateName(GatePrivate *gate, const std::string name)
+{
+    std::string origin = gate->name;
+
+    GatePrivate *origin_gate = gates[origin];
+    if(origin_gate)
+    {
+        gates[name] = origin_gate;
+        gates.erase(origin);
+        std::replace(gateNames.begin(), gateNames.end(), origin, name);
+    }
+    else
+        std::cerr << "setGateName fail:" << this->name << ":" << origin << std::endl;
+
+}
+
+void ModulePrivate::setWireName(WirePrivate *wire, const std::string name)
+{
+    std::string origin = wire->name;
+
+    WirePrivate *origin_wire = wires[origin];
+    if(origin_wire)
+    {
+        wires[name] = origin_wire;
+        wires.erase(origin);
+        std::replace(wireNames.begin(), wireNames.end(), origin, name);
+    }
+    else
+        std::cerr << "setWireName fail:" << this->name << ":" << origin << std::endl;
+}
+
+void ModulePrivate::setPortName(PortPrivate *port, const std::string name)
+{
+    std::string origin = port->name;
+
+    PortPrivate *origin_port = ports[origin];
+    if(origin_port)
+    {
+        ports[name] = origin_port;
+        ports.erase(origin);
+        std::replace(portNames.begin(), portNames.end(), origin, name);
+
+        NodePrivate *node = NULL;
+        PortPrivate *temp = NULL;
+        switch(port->type)
+        {
+            case Port::Input:
+                node = inputs[origin];
+                inputs.erase(origin);
+                inputs[name] = node;
+                std::replace(inputNames.begin(), inputNames.end(), origin, name);
+               
+                temp = PIs[origin];
+                PIs.erase(origin);
+                PIs[name] = temp;
+
+                std::replace(PINames.begin(), PINames.end(), origin, name);
+                break;
+            case Port::Output:
+                node = outputs[origin];
+                outputs.erase(origin);
+                outputs[name] = node;
+                std::replace(outputNames.begin(), outputNames.end(), origin, name);
+
+                temp = POs[origin];
+                POs.erase(origin);
+                POs[name] = temp;
+
+                std::replace(PONames.begin(), PONames.end(), origin, name);
+                break;
+            case Port::PPI:
+                node = inputs[origin];
+                inputs.erase(origin);
+                inputs[name] = node;
+                std::replace(inputNames.begin(), inputNames.end(), origin, name);
+
+                temp = PPIs[origin];
+                PPIs.erase(origin);
+                PPIs[name] = temp;
+
+                std::replace(PPINames.begin(), PPINames.end(), origin, name);
+                break;
+            case Port::PPO:
+                node = outputs[origin];
+                outputs.erase(origin);
+                outputs[name] = node;
+                std::replace(outputNames.begin(), outputNames.end(), origin, name);
+
+                temp = PPOs[origin];
+                PPOs.erase(origin);
+                PPOs[name] = temp;
+
+                std::replace(PPONames.begin(), PPONames.end(), origin, name);
+                break;
+            default: break;
+        }
+    }
+    else
+        std::cerr << "setPortName fail:" << this->name << ":" << origin << std::endl;
+}
+
+bool ModulePrivate::pushCell(CellPrivate* cell)
+{
+    if (cells.find(cell->name) != cells.end())
+        std::cerr << "WARNING: Duplicate add the same cell instance" << std::endl;
+    cell->setOwnerCircuit(this->ownerCircuit());
+    cell->setParent(this);
+    cell->ref.ref();
+    cellNames.push_back(cell->name);
+    cells[cell->name] = cell;
+    return false;
+}
+
+bool ModulePrivate::pushGate(GatePrivate* gate)
+{
+    if (gates.find(gate->name) != gates.end())
+        std::cerr << "WARNING: Duplicate add the same gate instance" << std::endl;
+    gate->setOwnerCircuit(this->ownerCircuit());
+    gate->setParent(this);
+    gate->ref.ref();
+    gateNames.push_back(gate->name);
+    gates[gate->name] = gate;
+   return false;
+}
+
+bool ModulePrivate::pushWire(WirePrivate* wire)
+{
+    if (wires.find(wire->name) != wires.end())
+        std::cerr << "WARNING: Duplicate add the same wire instance" << std::endl;
+    wire->setOwnerCircuit(this->ownerCircuit());
+    wire->setParent(this);
+    wire->ref.ref();
+    wireNames.push_back(wire->name);
+    wires[wire->name] = wire;
+    return false;
+}
+
+bool ModulePrivate::pushPort(PortPrivate* port)
+{
+    if (ports.find(port->name) != ports.end())
+        std::cerr << "WARNING: Duplicate add the same port instance" << std::endl;
+    port->setOwnerCircuit(this->ownerCircuit());
+    port->setParent(this);
+    port->ref.ref();
+    switch (port->type)
+    {
+        case Port::Input:   addInput(port);  PIs[port->name] = port;  PINames.push_back(port->name);  break;
+        case Port::Output:  addOutput(port); POs[port->name] = port;  PONames.push_back(port->name);  break;
+        case Port::PPI:     addInput(port);  PPIs[port->name] = port; PPINames.push_back(port->name); break;
+        case Port::PPO:     addOutput(port); PPOs[port->name] = port; PPONames.push_back(port->name); break;
+        default: return 0;
+    }
+    portNames.push_back(port->name);
+    ports[port->name] = port;
+    return false;
 }
 
 bool ModulePrivate::removeWire(const std::string &wireName)
@@ -1754,7 +1953,6 @@ bool ModulePrivate::removeWire(const std::string &wireName)
             {
                 std::string key = _getPinfromKey(nodei, wire->inputNames[in]);
                 nodei->outputs.erase(key);
-                nodei->outputs[key] = 0;
             }
         }
     }
@@ -1773,7 +1971,6 @@ bool ModulePrivate::removeWire(const std::string &wireName)
             {
                 std::string key = _getPinfromKey(nodeo, wire->outputNames[out]);
                 nodeo->inputs.erase(key);
-                nodeo->inputs[key] = 0;
             }
         }
     }
@@ -1801,7 +1998,6 @@ bool ModulePrivate::removePort(const std::string &portName)
             {
                 std::string key = _getPinfromKey(nodei, port->inputNames[in]);
                 nodei->outputs.erase(key);
-                nodei->outputs[key] = 0;
             }
         }
     }
@@ -1820,13 +2016,41 @@ bool ModulePrivate::removePort(const std::string &portName)
             {
                 std::string key = _getPinfromKey(nodeo, port->outputNames[out]);
                 nodeo->inputs.erase(key);
-                nodeo->inputs[key] = 0;
             }
         }
     }
     ports.erase(portName);
     portNames.erase(std::remove(portNames.begin(), portNames.end(), portName), portNames.end());
-    
+   
+    switch (port->type)
+    {
+        case Port::Input: 
+            inputs.erase(portName);
+            inputNames.erase(std::remove(inputNames.end(), inputNames.end(), portName), inputNames.end());
+            PIs.erase(portName);
+            PINames.erase(std::remove(PINames.begin(), PINames.end(), portName), PINames.end());
+            break;
+        case Port::Output:
+            outputs.erase(portName);
+            outputNames.erase(std::remove(outputNames.begin(), outputNames.end(), portName), outputNames.end());
+            POs.erase(portName);
+            PONames.erase(std::remove(PONames.begin(), PONames.end(), portName), PONames.end());
+            break;
+        case Port::PPI:
+            inputs.erase(portName);
+            inputNames.erase(std::remove(inputNames.begin(), inputNames.end(), portName), inputNames.end());
+            PPIs.erase(portName);
+            PPINames.erase(std::remove(PPINames.begin(), PPINames.end(), portName), PPINames.end());
+            break;
+        case Port::PPO:
+            outputs.erase(portName);
+            outputNames.erase(std::remove(outputNames.begin(), outputNames.end(), portName), outputNames.end()); 
+            PPOs.erase(portName);
+            PPONames.erase(std::remove(PPONames.begin(), PPONames.end(), portName), PPONames.end());
+            break;
+        default:
+            break;
+    }
     return true;
 }
 
@@ -2135,19 +2359,57 @@ Gate Module::createGate(const std::string &gateName, Gate::GateType type)
     return Gate(IMPL->createGate(gateName, type));
 }
 
+void Module::setNodeName(Node &node, const std::string &name)
+{
+    if (!impl)
+        return;
+
+    if (node.isCell())
+        IMPL->setCellName((CellPrivate*)node.toCell().impl, name);
+    else if (node.isGate())
+        IMPL->setGateName((GatePrivate*)node.toGate().impl, name);
+    else if (node.isWire())
+        IMPL->setWireName((WirePrivate*)node.toWire().impl, name);
+    else if (node.isPort())
+        IMPL->setPortName((PortPrivate*)node.toPort().impl, name);
+    else 
+        return;
+}
+
+bool Module::pushNode(Node &node)
+{
+    if (!impl)
+        return false;
+
+    if (node.isCell())
+        return IMPL->pushCell((CellPrivate*)node.toCell().impl);
+    else if (node.isGate())
+        return IMPL->pushGate((GatePrivate*)node.toGate().impl);
+    else if (node.isWire())
+        return IMPL->pushWire((WirePrivate*)node.toWire().impl);
+    else if (node.isPort())
+        return IMPL->pushPort((PortPrivate*)node.toPort().impl);
+    else
+        return false;
+}
+
 bool Module::removeNode(Node &node)
 {
     if (!impl)
         return false;
-    return IMPL->removeNode(node);
+
+    else if (node.isCell())
+        return IMPL->removeCell(node.name());
+    else if (node.isGate())
+        return IMPL->removeGate(node.name());
+    else if (node.isWire())
+        return IMPL->removeWire(node.name());
+    else if (node.isPort())
+        return IMPL->removePort(node.name());
+    else
+        return false;
 }
 
-/* bool Module::removeCell(const std::string &cellName) */
-/* { */
-/*     if (!impl) */
-/*         return false; */
-/*     return IMPL->removeCell(cellName); */
-/* } */
 
 #undef IMPL
 
@@ -2433,6 +2695,18 @@ static void handleOutputCallByOrder(Module &module, Gate &gate, const std::strin
         //gate.connectOutput((*counter), p);
         (*counter)++;
     }
+}
+
+void Circuit::load(const std::string &path, CellLibrary &lib)
+{
+    std::fstream infile(path.c_str());
+    if (!infile.good())
+    {
+        std::cerr << "Could not open file: " << path << std::endl;
+        impl = 0;
+        return;
+    }
+    load(infile, path, lib);
 }
 
 void Circuit::load(std::fstream &infile, const std::string &path)
@@ -2721,6 +2995,7 @@ void Circuit::load(std::fstream &infile, const std::string &path, CellLibrary &l
                     }
                 }
                 module.addCell(cell);
+                /* module.setNodeName(cell, mInst->inst(0)->name()); */
             }
         }
 
@@ -2739,6 +3014,8 @@ void Circuit::load(std::fstream &infile, const std::string &path, CellLibrary &l
             impl = 0;
             return;
         }
+
+        IMPL->path = path;
     }
 }
 
@@ -2868,6 +3145,13 @@ Pattern Circuit::output() const
     for (size_t i = 0; i < outputSize(); i++)
         oss << outputPort(i).value();
     return oss.str();
+}
+
+std::string Circuit::filePath() const
+{
+    if (!impl)
+        return "";
+    return IMPL->path;
 }
 
 #undef IMPL
