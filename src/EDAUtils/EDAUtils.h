@@ -49,7 +49,7 @@ class EDAUtils
         static bool mux_connect_interal(Circuit &circuit, Cell &target, CellLibrary &library, std::vector<Cell> &newCells);
         static bool insertCell2AllCellOutputs(Circuit &circuit, CellLibrary &library, bool (*CALLBACK)(Circuit &circuit, Cell &target, CellLibrary &library, std::vector<Cell> &newCells));
 
-        // now only support Cell
+        // Automatically removeAllDFF
         static void timeFrameExpansion(Circuit &, CellLibrary &library, const unsigned cycles, std::vector<Circuit> &maintains);
 };
 
