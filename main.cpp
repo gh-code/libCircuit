@@ -20,9 +20,9 @@ void forward(const Node &node)
     string spaces(2 * level, ' ');
     cout << spaces << node.nodeName();
     if (node.isWire())
-        cout << " (W)" ;
+        cout << " (Wire)" ;
     if (node.isPort())
-        cout << " (P)" ;
+        cout << " (Port)" ;
     if (node.isGate())
         cout << " (" << type_str(node.toGate().gateType()) << ") {" << node.toGate().level() << ")";
     if (node.isCell())
@@ -45,9 +45,9 @@ void backward(const Node &node)
     string spaces(2 * level, ' ');
     cout << spaces << node.nodeName();
     if (node.isWire())
-        cout << " (W)" ;
+        cout << " (Wire)" ;
     if (node.isPort())
-        cout << " (P)" ;
+        cout << " (Port)" ;
     if (node.isGate())
     if (node.isGate())
         cout << " (" << type_str(node.toGate().gateType()) << ")";
@@ -67,9 +67,64 @@ void printCircuitInfo(const Circuit &circuit)
 {
     cout << " circuit: " << circuit.name() << endl;
     cout << " #inputs: " << circuit.inputSize() << endl;
-    cout << "#outputs: " << circuit.outputSize() << endl;
+    cout << " #outputs: " << circuit.outputSize() << endl;
+    cout << " #PI: " << circuit.PISize() << endl;
+    cout << " #PO: " << circuit.POSize() << endl;
+    cout << " #PPI: " << circuit.PPISize() << endl;
+    cout << " #PPO: " << circuit.PPOSize() << endl;
     cout << "  #gates: " << circuit.gateCount() << endl;
     cout << "#modules: " << circuit.moduleSize() << endl;
+    for(size_t i = 0; i < circuit.topModule().PISize(); i++)
+    {
+        Port w = circuit.topModule().PI(i);
+        cout << "Port(PI): " << w.name() << " ";
+        cout << "inputSize: " << w.inputSize() << endl;
+        cout << "outputSize: " << w.outputSize() << endl;
+    }
+    for(size_t i = 0; i < circuit.topModule().POSize(); i++)
+    {
+        Port w = circuit.topModule().PO(i);
+        cout << "Port(PO): " << w.name() << " ";
+        cout << "inputSize: " << w.inputSize() << endl;
+        cout << "outputSize: " << w.outputSize() << endl;
+    }
+    for(size_t i = 0; i < circuit.topModule().PPISize(); i++)
+    {
+        Port w = circuit.topModule().PPI(i);
+        cout << "Port(PPI): " << w.name() << " ";
+        cout << "inputSize: " << w.inputSize() << endl;
+        cout << "outputSize: " << w.outputSize() << endl;
+    }
+    for(size_t i = 0; i < circuit.topModule().PPOSize(); i++)
+    {
+        Port w = circuit.topModule().PPO(i);
+        cout << "Port(PPO): " << w.name() << " ";
+        cout << "inputSize: " << w.inputSize() << endl;
+        cout << "outputSize: " << w.outputSize() << endl;
+    }
+    for(size_t i = 0; i < circuit.topModule().wireSize(); i++)
+    {
+        Wire w = circuit.topModule().wire(i);
+        cout << "Wire: " << w.name() << " ";
+        cout << "inputSize: " << w.inputSize() << endl;
+        cout << "outputSize: " << w.outputSize() << endl;
+    }
+    for(size_t i = 0; i < circuit.topModule().gateSize(); i++)
+    {
+        Gate c = circuit.topModule().gate(i);
+        cout << "Cell: " << c.name() << "  ";
+        cout << "inputSize: " << c.inputSize() << endl;
+        cout << "outputSize: " << c.outputSize() << endl;
+        cout << "(" << c.level() << ")" << endl;
+    }
+    for(size_t i = 0; i < circuit.topModule().cellSize(); i++)
+    {
+        Cell c = circuit.topModule().cell(i);
+        cout << "Cell: " << c.name() << "  ";
+        cout << "inputSize: " << c.inputSize() << endl;
+        cout << "outputSize: " << c.outputSize() << endl;
+        cout << "(" << c.level() << ")" << endl;
+    }
 }
 
 void printCellLibraryInfo(const CellLibrary &library)
@@ -112,22 +167,6 @@ int main(int argc, char *argv[])
 
     vector<Cell> temp;
     EDAUtils::orderByLevel(circuit, temp);
-    for(size_t i = 0; i < circuit.topModule().gateSize(); i++)
-    {
-        Gate c = circuit.topModule().gate(i);
-        cout << "Cell: " << c.name() << "  ";
-        cout << "inputSize: " << c.inputSize() << endl;
-        cout << "outputSize: " << c.outputSize() << endl;
-        cout << "(" << c.level() << ")" << endl;
-    }
-    for(size_t i = 0; i < circuit.topModule().cellSize(); i++)
-    {
-        Cell c = circuit.topModule().cell(i);
-        cout << "Cell: " << c.name() << "  ";
-        cout << "inputSize: " << c.inputSize() << endl;
-        cout << "outputSize: " << c.outputSize() << endl;
-        cout << "(" << c.level() << ")" << endl;
-    }
     
     cout << "===============================" << endl;
     cout << "========  Remove All DFF  =====" << endl;
@@ -136,22 +175,6 @@ int main(int argc, char *argv[])
     EDAUtils::removeAllDFF(circuit);
 
     printCircuitInfo(circuit);
-    for(size_t i = 0; i < circuit.topModule().gateSize(); i++)
-    {
-        Gate c = circuit.topModule().gate(i);
-        cout << "Cell: " << c.name() << "  ";
-        cout << "inputSize: " << c.inputSize() << endl;
-        cout << "outputSize: " << c.outputSize() << endl;
-        cout << "(" << c.level() << ")" << endl;
-    }
-    for(size_t i = 0; i < circuit.topModule().cellSize(); i++)
-    {
-        Cell c = circuit.topModule().cell(i);
-        cout << "Cell: " << c.name() << "  ";
-        cout << "inputSize: " << c.inputSize() << endl;
-        cout << "outputSize: " << c.outputSize() << endl;
-        cout << "(" << c.level() << ")" << endl;
-    }
     cout << "======== backward =========" << endl;
     for (size_t i = 0; i < circuit.outputSize(); i++)
         backward(circuit.outputPort(i));
@@ -159,57 +182,28 @@ int main(int argc, char *argv[])
     for (size_t i = 0; i < circuit.inputSize(); i++)
         forward(circuit.inputPort(i));
 
-    cout << "===============================" << endl;
-    cout << "===== Insert MUX to Cell  =====" << endl;
-    cout << "===============================" << endl;
-    EDAUtils::insertCell2AllCellOutputs(circuit, library, EDAUtils::mux_connect_interal);
 
-    printCircuitInfo(circuit);
-    for(size_t i = 0; i < circuit.topModule().gateSize(); i++)
-    {
-        Gate c = circuit.topModule().gate(i);
-        cout << "Cell: " << c.name() << "  ";
-        cout << "inputSize: " << c.inputSize() << endl;
-        cout << "outputSize: " << c.outputSize() << endl;
-        cout << "(" << c.level() << ")" << endl;
-    }
-    for(size_t i = 0; i < circuit.topModule().cellSize(); i++)
-    {
-        Cell c = circuit.topModule().cell(i);
-        cout << "Cell: " << c.name() << "  ";
-        cout << "inputSize: " << c.inputSize() << endl;
-        cout << "outputSize: " << c.outputSize() << endl;
-        cout << "(" << c.level() << ")" << endl;
-    }
-    cout << "======== backward =========" << endl;
-    for (size_t i = 0; i < circuit.outputSize(); i++)
-        backward(circuit.outputPort(i));
-    cout << "======== forward ==========" << endl;
-    for (size_t i = 0; i < circuit.inputSize(); i++)
-        forward(circuit.inputPort(i));
+    /* cout << "===============================" << endl; */
+    /* cout << "===== Insert MUX to Cell  =====" << endl; */
+    /* cout << "===============================" << endl; */
+    /* EDAUtils::insertCell2AllCellOutputs(circuit, library, EDAUtils::mux_connect_interal); */
+
+    /* printCircuitInfo(circuit); */
+    /* cout << "======== backward =========" << endl; */
+    /* for (size_t i = 0; i < circuit.outputSize(); i++) */
+    /*     backward(circuit.outputPort(i)); */
+    /* cout << "======== forward ==========" << endl; */
+    /* for (size_t i = 0; i < circuit.inputSize(); i++) */
+    /*     forward(circuit.inputPort(i)); */
 
     temp.clear();
     EDAUtils::orderByLevel(circuit, temp);
 
     printCircuitInfo(circuit);
-    for(size_t i = 0; i < circuit.topModule().gateSize(); i++)
-    {
-        Gate c = circuit.topModule().gate(i);
-        cout << "Cell: " << c.name() << "  ";
-        cout << "inputSize: " << c.inputSize() << endl;
-        cout << "outputSize: " << c.outputSize() << endl;
-        cout << "(" << c.level() << ")" << endl;
-    }
-    for(size_t i = 0; i < circuit.topModule().cellSize(); i++)
-    {
-        Cell c = circuit.topModule().cell(i);
-        cout << "Cell: " << c.name() << "  ";
-        cout << "inputSize: " << c.inputSize() << endl;
-        cout << "outputSize: " << c.outputSize() << endl;
-        cout << "(" << c.level() << ")" << endl;
-    }
 
-    cout << "======= Simulation =======" << endl;
+    cout << "===============================" << endl;
+    cout << "========= Simulation ==========" << endl;
+    cout << "===============================" << endl;
     circuit.input("00000");
     for (size_t i = 0; i < circuit.inputSize(); i++)
     {
@@ -218,9 +212,7 @@ int main(int argc, char *argv[])
         {
             Node node = p.output(j);
             if(node.isWire())
-            {
                 node.setValue(p.value());
-            }
         }
     }
     for (size_t i = 0; i < temp.size(); i++)
@@ -246,5 +238,39 @@ int main(int argc, char *argv[])
     }
     cout << "output" << endl;
     cout << circuit.output() << endl;
+    cout << endl;
+
+    cout << "======================================" << endl;
+    cout << "======== Timeframe Expansion =========" << endl;
+    cout << "======================================" << endl;
+    vector<Circuit> maintains;
+    EDAUtils::timeFrameExpansion(circuit, library, 3, maintains);
+
+    temp.clear();
+    EDAUtils::orderByLevel(circuit, temp);
+
+    printCircuitInfo(circuit);
+    cout << "======== backward =========" << endl;
+    for (size_t i = 0; i < circuit.outputSize(); i++)
+        backward(circuit.outputPort(i));
+    cout << "======== forward ==========" << endl;
+    for (size_t i = 0; i < circuit.inputSize(); i++)
+        forward(circuit.inputPort(i));
+
+    cout << "===============================" << endl;
+    cout << "===== Insert MUX to Cell  =====" << endl;
+    cout << "===============================" << endl;
+    EDAUtils::insertCell2AllCellOutputs(circuit, library, EDAUtils::mux_connect_interal);
+
+    temp.clear();
+    EDAUtils::orderByLevel(circuit, temp);
+
+    printCircuitInfo(circuit);
+    cout << "======== backward =========" << endl;
+    for (size_t i = 0; i < circuit.outputSize(); i++)
+        backward(circuit.outputPort(i));
+    cout << "======== forward ==========" << endl;
+    for (size_t i = 0; i < circuit.inputSize(); i++)
+        forward(circuit.inputPort(i));
     return 0;
 }
