@@ -26,6 +26,8 @@ class Cell;
 class Module;
 class Circuit;
 
+enum DelayType { None, MinDelay, MaxDelay };
+
 typedef std::string Pattern;
 class Signal
 {
@@ -38,9 +40,9 @@ public:
         Last
     };
     enum Transition {
-        Fall,
+        None,
         Rise,
-        None
+        Fall
     };
     Signal();
     Signal(unsigned s);
@@ -239,8 +241,16 @@ public:
     double inputCapacitance(const std::string &pinIn) const;
     double inputCapacitanceRise(size_t index) const;
     double inputCapacitanceRise(const std::string &pinIn) const;
+    double inputCapacitanceRiseMin(size_t index) const;
+    double inputCapacitanceRiseMin(const std::string &pinIn) const;
+    double inputCapacitanceRiseMax(size_t index) const;
+    double inputCapacitanceRiseMax(const std::string &pinIn) const;
     double inputCapacitanceFall(size_t index) const;
     double inputCapacitanceFall(const std::string &pinIn) const;
+    double inputCapacitanceFallMin(size_t index) const;
+    double inputCapacitanceFallMin(const std::string &pinIn) const;
+    double inputCapacitanceFallMax(size_t index) const;
+    double inputCapacitanceFallMax(const std::string &pinIn) const;
     double outputMaxCapacitance(const std::string &pinOut) const;
     double outputMaxTransition(const std::string &pinOut) const;
     double delay(const std::string &pinIn, const std::string &pinOut, Signal::Transition trans, double inputSlew, double outputLoad) const;
@@ -254,9 +264,13 @@ public:
     void setFunction(const std::string&);
     void setInputCapacitance(const std::string&, double);
     void setInputCapacitanceRise(const std::string&, double);
+    void setInputCapacitanceRiseMin(const std::string&, double);
+    void setInputCapacitanceRiseMax(const std::string&, double);
     void setInputCapacitanceFall(const std::string&, double);
-    void setOutputMaxCapacitance(const std::string&, double) const;
-    void setOutputMaxTransition(const std::string&, double) const;
+    void setInputCapacitanceFallMin(const std::string&, double);
+    void setInputCapacitanceFallMax(const std::string&, double);
+    void setOutputMaxCapacitance(const std::string&, double);
+    void setOutputMaxTransition(const std::string&, double);
 
     void addInputPinName(const std::string&);
     void addOutputPinName(const std::string&);

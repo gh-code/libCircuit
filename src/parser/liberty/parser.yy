@@ -85,6 +85,8 @@ inline std::string trim_quote(const std::string&);
 %token NOM_PROCESS
 %token NOM_TEMPERATURE
 %token NOM_VOLTAGE
+%token WIRE_LOAD
+%token DEFAULT_WIRE_LOAD
 %token LU_TABLE_TEMPLATE
 %token VARIABLE_1
 %token VARIABLE_2
@@ -92,6 +94,8 @@ inline std::string trim_quote(const std::string&);
 %token INDEX_2
 %token CELL
 %token AREA
+%token SLOPE
+%token FANOUT_LENGTH
 %token CELL_LEAKAGE_POWER
 %token LEAKAGE_POWER
 %token PIN
@@ -112,6 +116,7 @@ inline std::string trim_quote(const std::string&);
 %token WHEN
 %token SDF_COND
 %token CAPACITANCE
+%token RESISTANCE
 %token FALL_CAPACITANCE
 %token RISE_CAPACITANCE
 %token FALL_CAPACITANCE_RANGE
@@ -127,6 +132,8 @@ inline std::string trim_quote(const std::string&);
 %type<sval> string
 %type<list> top_statement_list
 %type<node> top_statement
+%type<list> wire_load_statement_list
+%type<node> wire_load_statement
 %type<list> lu_table_template_statement_list
 %type<node> lu_table_template_statement
 %type<list> statement_list
@@ -206,6 +213,93 @@ top_statement
         | NOM_PROCESS ':' FLOAT ';'             { driver.liberty.nom_process     = atof($3->c_str()); $$ = 0; delete $3; }
         | NOM_TEMPERATURE ':' FLOAT ';'         { driver.liberty.nom_temperature = atof($3->c_str()); $$ = 0; delete $3; }
         | NOM_VOLTAGE ':' FLOAT ';'             { driver.liberty.nom_voltage     = atof($3->c_str()); $$ = 0; delete $3; }
+        | DEFAULT_WIRE_LOAD ':' string ';'      { driver.liberty.default_wire_load = *$3; $$ = 0; delete $3; }
+        | WIRE_LOAD '(' identifier ')' '{' wire_load_statement_list '}'
+        {
+            const std::vector<LibertyNode*>& nodes = $6->nodes;
+            LNWireLoad wire_load;
+            for (size_t i = 0; i < nodes.size(); i++)
+            {
+                LibertyNode *node = nodes[i];
+                switch (node->nodeType())
+                {
+                    case LibertyNode::ValueNode:
+                    {
+                        LNValue *val = (LNValue*) node;
+                        if (val->name() == "capacitance")
+                        {
+                            LNDouble *f = (LNDouble *) val->value();
+                            wire_load.capacitance = f->value();
+                        }
+                        else if (val->name() == "resistance")
+                        {
+                            LNDouble *f = (LNDouble *) val->value();
+                            wire_load.resistance = f->value();
+                        }
+                        else if (val->name() == "area")
+                        {
+                            LNDouble *f = (LNDouble *) val->value();
+                            wire_load.area = f->value();
+                        }
+                        else if (val->name() == "slope")
+                        {
+                            LNDouble *f = (LNDouble *) val->value();
+                            wire_load.slope = f->value();
+                        }
+                        else
+                        {
+                            error(yyloc, std::string("Bad wire_load Statement"));
+                            delete $3;
+                            delete $6;
+                            YYERROR;
+                        }
+                        break;
+                    }
+                    case LibertyNode::StatementNode:
+                    {
+                        LNStatement *stmt = (LNStatement*) node;
+                        if (stmt->name() != "fanout_length")
+                        {
+                            error(yyloc, std::string("Unknown Statment: "+stmt->name()));
+                            delete $3;
+                            delete $6;
+                            YYERROR;
+                        }
+                        if (stmt->parameterSize() < 2)
+                        {
+                            error(yyloc, std::string("Bad fanout_length"));
+                            delete $3;
+                            delete $6;
+                            YYERROR;
+                        }
+                        LibertyNode *firstNode = stmt->parameter(0);
+                        LibertyNode *secondNode = stmt->parameter(1);
+                        if (firstNode->nodeType() != LibertyNode::IntegerNode ||
+                            secondNode->nodeType() != LibertyNode::DoubleNode)
+                        {
+                            error(yyloc, std::string("Bad fanout_length"));
+                            delete $3;
+                            delete $6;
+                            YYERROR;
+                        }
+                        int first = ((LNInteger *)firstNode)->value();
+                        double second = ((LNDouble *)secondNode)->value();
+                        wire_load.fanout_length[first] = second;
+                        break;
+                    }
+                    default:
+                        error(yyloc, std::string("Bad Statement"));
+                        delete $3;
+                        delete $6;
+                        YYERROR;
+                }
+            }
+            std::string name = ((LNString*)$3)->value();
+            driver.liberty.wire_loads[name] = wire_load;
+            $$ = 0;
+            delete $3;
+            delete $6;
+        }
         | LU_TABLE_TEMPLATE '(' identifier ')' '{' lu_table_template_statement_list '}'
         {
             const std::vector<LibertyNode*>& nodes = $6->nodes;
@@ -226,7 +320,10 @@ top_statement
                     LNString *str = (LNString*)(val->value());
                     lu_table_template.index_2 = str->value();
                 } else {
-                    std::cerr << "What the hell?" << std::endl;
+                    error(yyloc, std::string("Bad Statement"));
+                    delete $3;
+                    delete $6;
+                    YYERROR;
                 }
             }
             std::string name = ((LNString*)$3)->value();
@@ -289,6 +386,19 @@ top_statement
             $$ = new LNStatement("cell", paramList, $6);
         }
         | statement                             { $$ = $1; }
+        ;
+
+wire_load_statement_list
+        : wire_load_statement                   { $$ = new LibertyNodeList; if ($1) $$->nodes.push_back($1); }
+        | wire_load_statement_list wire_load_statement { if ($2) $1->nodes.push_back($2); }
+        ;
+
+wire_load_statement
+        : CAPACITANCE ':' FLOAT ';'             { $$ = new LNValue("capacitance", new LNDouble(atof($3->c_str()))); delete $3; }
+        | RESISTANCE ':' FLOAT ';'              { $$ = new LNValue("resistance", new LNDouble(atof($3->c_str()))); delete $3; }
+        | AREA ':' FLOAT ';'                    { $$ = new LNValue("area", new LNDouble(atof($3->c_str()))); delete $3; }
+        | SLOPE ':' FLOAT ';'                   { $$ = new LNValue("slope", new LNDouble(atof($3->c_str()))); delete $3; }
+        | FANOUT_LENGTH '(' parameter_list ')' ';' { $$ = new LNStatement("fanout_length", $3, 0); }
         ;
 
 lu_table_template_statement_list
@@ -458,7 +568,8 @@ pin_statement
                         } else if (table->name == "rise_constraint") {
                             timing->rise_constraint = table;
                         } else {
-                            std::cerr << "Weird table" << std::endl;
+                            error(yyloc, std::string("Bad Table"));
+                            YYERROR;
                         }
                         it = $5->nodes.erase(it);
                     }
@@ -513,7 +624,7 @@ timing_statement_list
 timing_statement
         : RELATED_PIN ':' string ';'            { $$ = new LNValue("related_pin", *$3); delete $3; }
         | TIMING_SENSE ':' identifier ';'       { $$ = new LNValue("timing_sense", $3); }
-        | TIMING_TYPE ':' identifier ';'       { $$ = new LNValue("timing_type", $3); }
+        | TIMING_TYPE ':' identifier ';'        { $$ = new LNValue("timing_type", $3); }
         | CELL_FALL '(' identifier ')' '{' VALUES '(' parameter_list ')' ';' '}' { $$ = new LNTimingTable("cell_fall", ((LNString*)$3)->value(), $8); }
         | CELL_RISE '(' identifier ')' '{' VALUES '(' parameter_list ')' ';' '}' { $$ = new LNTimingTable("cell_rise", ((LNString*)$3)->value(), $8); }
         | FALL_TRANSITION '(' identifier ')' '{' VALUES '(' parameter_list ')' ';' '}' { $$ = new LNTimingTable("fall_transition", ((LNString*)$3)->value(), $8); }

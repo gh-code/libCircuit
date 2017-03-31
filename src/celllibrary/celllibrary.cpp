@@ -15,6 +15,9 @@ public:
     CellLibraryPrivate();
     CellLibraryPrivate(const std::string&);
 
+    double wireResistance(int fanout) const;
+    double wireCapacitance(int fanout) const;
+
     void createTwoInputCell(const std::string&, const std::string&, const std::string&, const std::string&);
     bool hasCell(const std::string&) const;
     Cell cell(const std::string&) const;
@@ -31,6 +34,10 @@ public:
     double nom_process;
     double nom_temperature;
     double nom_voltage;
+    double wire_load_resistance;
+    double wire_load_capacitance;
+    std::map<int,double> fanout_length;
+    std::string default_wire_load;
 
     bool isDefault;
 
@@ -69,6 +76,26 @@ CellLibraryPrivate::CellLibraryPrivate(const std::string &path) : isDefault(fals
         return;
     }
     load(infile, path);
+}
+
+double CellLibraryPrivate::wireCapacitance(int fanout) const
+{
+    if (fanout_length.find(fanout) == fanout_length.end())
+    {
+        std::cerr << "Warning: fanout for wire load is out of range" << std::endl;
+        return 0.0;
+    }
+    return wire_load_capacitance * fanout_length.at(fanout);
+}
+
+double CellLibraryPrivate::wireResistance(int fanout) const
+{
+    if (fanout_length.find(fanout) == fanout_length.end())
+    {
+        std::cerr << "Warning: fanout for wire load is out of range" << std::endl;
+        return 0.0;
+    }
+    return wire_load_resistance * fanout_length.at(fanout);
 }
 
 static void tableRowStringToDouble(std::vector<double> *out, const std::string &data)
@@ -189,11 +216,10 @@ bool CellLibraryPrivate::load(std::fstream &infile, const std::string &path)
     nom_process = liberty.nom_process;
     nom_temperature = liberty.nom_temperature;
     nom_voltage = liberty.nom_voltage;
-
-    // Build cell library
-
-    // 1. lu_table_templates
-    // 2. cells
+    default_wire_load = liberty.default_wire_load;
+    wire_load_resistance = liberty.wire_loads[default_wire_load].resistance;
+    wire_load_capacitance = liberty.wire_loads[default_wire_load].capacitance;
+    fanout_length = liberty.wire_loads[default_wire_load].fanout_length;
 
     std::map<std::string,LNCell>::iterator it;
     for (it = liberty.cells.begin(); it != liberty.cells.end(); ++it)
@@ -211,6 +237,10 @@ bool CellLibraryPrivate::load(std::fstream &infile, const std::string &path)
                 cell.setInputCapacitance(pin->name, pin->capacitance);
                 cell.setInputCapacitanceRise(pin->name, pin->rise_capacitance);
                 cell.setInputCapacitanceFall(pin->name, pin->fall_capacitance);
+                cell.setInputCapacitanceRiseMin(pin->name, pin->rise_capacitance_range.left());
+                cell.setInputCapacitanceFallMin(pin->name, pin->fall_capacitance_range.left());
+                cell.setInputCapacitanceRiseMax(pin->name, pin->rise_capacitance_range.right());
+                cell.setInputCapacitanceFallMax(pin->name, pin->fall_capacitance_range.right());
                 cell.addInputPinName(pin->name);
             }
             else if (pin->direction == "output")
@@ -431,6 +461,13 @@ double CellLibrary::nom_voltage() const
     return impl->nom_voltage;
 }
 
+std::string CellLibrary::default_wire_load() const
+{
+    if (!impl)
+        return std::string();
+    return impl->default_wire_load;
+}
+
 bool CellLibrary::isDefault() const
 {
     return impl->isDefault;
@@ -446,6 +483,20 @@ bool CellLibrary::load(std::fstream &infile, const std::string &path)
     if (!impl)
         return false;
     return impl->load(infile, path);
+}
+
+double CellLibrary::wireCapacitance(int fanout) const
+{
+    if (!impl)
+        return 0.0;
+    return impl->wireCapacitance(fanout);
+}
+
+double CellLibrary::wireResistance(int fanout) const
+{
+    if (!impl)
+        return 0.0;
+    return impl->wireResistance(fanout);
 }
 
 size_t CellLibrary::cellCount() const
@@ -467,4 +518,100 @@ Cell CellLibrary::cell(const std::string &type) const
     if (!impl)
         return Cell();
     return impl->cell(type);
+}
+
+double CellLibrary::inputWireDelayRiseMin(const Cell &cell, size_t index) const
+{
+    if (!impl)    
+        return 0.0;
+    if (cell.inputSize() == 0 || !cell.input(0).isWire())
+        return 0.0;
+    int fanout = cell.input(0).outputSize();
+    double r_wire = wireResistance(fanout);
+    double c_wire = wireCapacitance(fanout);
+    return (r_wire / fanout) * (cell.inputCapacitanceRiseMin(index) + (c_wire / fanout));
+}
+
+double CellLibrary::inputWireDelayRiseMin(const Cell &cell, const std::string &pinIn) const
+{
+    if (!impl)    
+        return 0.0;
+    if (cell.inputSize() == 0 || !cell.input(0).isWire())
+        return 0.0;
+    int fanout = cell.input(0).outputSize();
+    double r_wire = wireResistance(fanout);
+    double c_wire = wireCapacitance(fanout);
+    return (r_wire / fanout) * (cell.inputCapacitanceRiseMin(pinIn) + (c_wire / fanout));
+}
+
+double CellLibrary::inputWireDelayRiseMax(const Cell &cell, size_t index) const
+{
+    if (!impl)    
+        return 0.0;
+    if (cell.inputSize() == 0 || !cell.input(0).isWire())
+        return 0.0;
+    int fanout = cell.input(0).outputSize();
+    double r_wire = wireResistance(fanout);
+    double c_wire = wireCapacitance(fanout);
+    return (r_wire / fanout) * (cell.inputCapacitanceRiseMax(index) + (c_wire / fanout));
+}
+
+double CellLibrary::inputWireDelayRiseMax(const Cell &cell, const std::string &pinIn) const
+{
+    if (!impl)    
+        return 0.0;
+    if (cell.inputSize() == 0 || !cell.input(0).isWire())
+        return 0.0;
+    int fanout = cell.input(0).outputSize();
+    double r_wire = wireResistance(fanout);
+    double c_wire = wireCapacitance(fanout);
+    return (r_wire / fanout) * (cell.inputCapacitanceRiseMax(pinIn) + (c_wire / fanout));
+}
+
+double CellLibrary::inputWireDelayFallMin(const Cell &cell, size_t index) const
+{
+    if (!impl)    
+        return 0.0;
+    if (cell.inputSize() == 0 || !cell.input(0).isWire())
+        return 0.0;
+    int fanout = cell.input(0).outputSize();
+    double r_wire = wireResistance(fanout);
+    double c_wire = wireCapacitance(fanout);
+    return (r_wire / fanout) * (cell.inputCapacitanceFallMin(index) + (c_wire / fanout));
+}
+
+double CellLibrary::inputWireDelayFallMin(const Cell &cell, const std::string &pinIn) const
+{
+    if (!impl)    
+        return 0.0;
+    if (cell.inputSize() == 0 || !cell.input(0).isWire())
+        return 0.0;
+    int fanout = cell.input(0).outputSize();
+    double r_wire = wireResistance(fanout);
+    double c_wire = wireCapacitance(fanout);
+    return (r_wire / fanout) * (cell.inputCapacitanceFallMin(pinIn) + (c_wire / fanout));
+}
+
+double CellLibrary::inputWireDelayFallMax(const Cell &cell, size_t index) const
+{
+    if (!impl)    
+        return 0.0;
+    if (cell.inputSize() == 0 || !cell.input(0).isWire())
+        return 0.0;
+    int fanout = cell.input(0).outputSize();
+    double r_wire = wireResistance(fanout);
+    double c_wire = wireCapacitance(fanout);
+    return (r_wire / fanout) * (cell.inputCapacitanceFallMax(index) + (c_wire / fanout));
+}
+
+double CellLibrary::inputWireDelayFallMax(const Cell &cell, const std::string &pinIn) const
+{
+    if (!impl)    
+        return 0.0;
+    if (cell.inputSize() == 0 || !cell.input(0).isWire())
+        return 0.0;
+    int fanout = cell.input(0).outputSize();
+    double r_wire = wireResistance(fanout);
+    double c_wire = wireCapacitance(fanout);
+    return (r_wire / fanout) * (cell.inputCapacitanceFallMax(pinIn) + (c_wire / fanout));
 }

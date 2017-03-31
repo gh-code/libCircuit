@@ -160,6 +160,10 @@ public:
     std::map<std::string,double> inputCapacitances;
     std::map<std::string,double> inputCapacitancesRise;
     std::map<std::string,double> inputCapacitancesFall;
+    std::map<std::string,double> inputCapacitancesRiseMin;
+    std::map<std::string,double> inputCapacitancesFallMin;
+    std::map<std::string,double> inputCapacitancesRiseMax;
+    std::map<std::string,double> inputCapacitancesFallMax;
     std::map<std::string,double> outputMaxCapacitance;
     std::map<std::string,double> outputMaxTransition;
     std::vector<Port::PortType> pinTypes;
@@ -1156,6 +1160,10 @@ CellPrivate::CellPrivate(CellPrivate* n, bool deep)
      inputCapacitances = n->inputCapacitances;
      inputCapacitancesRise = n->inputCapacitancesRise;
      inputCapacitancesFall = n->inputCapacitancesFall;
+     inputCapacitancesRiseMin = n->inputCapacitancesRiseMin;
+     inputCapacitancesFallMin = n->inputCapacitancesFallMin;
+     inputCapacitancesRiseMax = n->inputCapacitancesRiseMax;
+     inputCapacitancesFallMax = n->inputCapacitancesFallMax;
      outputMaxCapacitance = n->outputMaxCapacitance;
      outputMaxTransition = n->outputMaxTransition;
      delayTables = n->delayTables;
@@ -1398,6 +1406,70 @@ double Cell::inputCapacitanceFall(const std::string &pinName) const
     return IMPL->inputCapacitancesFall[pinName];
 }
 
+double Cell::inputCapacitanceRiseMin(size_t i) const
+{
+    if (!impl)
+        return 0;
+    return IMPL->inputCapacitancesRiseMin[impl->inputNames[i]];
+}
+
+double Cell::inputCapacitanceRiseMin(const std::string &pinName) const
+{
+    if (!impl)
+        return 0;
+    if (IMPL->inputCapacitancesRiseMin.find(pinName) == IMPL->inputCapacitancesRiseMin.end())
+        return 0;
+    return IMPL->inputCapacitancesRiseMin[pinName];
+}
+
+double Cell::inputCapacitanceFallMin(size_t i) const
+{
+    if (!impl)
+        return 0;
+    return IMPL->inputCapacitancesFallMin[impl->inputNames[i]];
+}
+
+double Cell::inputCapacitanceFallMin(const std::string &pinName) const
+{
+    if (!impl)
+        return 0;
+    if (IMPL->inputCapacitancesFallMin.find(pinName) == IMPL->inputCapacitancesFallMin.end())
+        return 0;
+    return IMPL->inputCapacitancesFallMin[pinName];
+}
+
+double Cell::inputCapacitanceRiseMax(size_t i) const
+{
+    if (!impl)
+        return 0;
+    return IMPL->inputCapacitancesRiseMax[impl->inputNames[i]];
+}
+
+double Cell::inputCapacitanceRiseMax(const std::string &pinName) const
+{
+    if (!impl)
+        return 0;
+    if (IMPL->inputCapacitancesRiseMax.find(pinName) == IMPL->inputCapacitancesRiseMax.end())
+        return 0;
+    return IMPL->inputCapacitancesRiseMax[pinName];
+}
+
+double Cell::inputCapacitanceFallMax(size_t i) const
+{
+    if (!impl)
+        return 0;
+    return IMPL->inputCapacitancesFallMax[impl->inputNames[i]];
+}
+
+double Cell::inputCapacitanceFallMax(const std::string &pinName) const
+{
+    if (!impl)
+        return 0;
+    if (IMPL->inputCapacitancesFallMax.find(pinName) == IMPL->inputCapacitancesFallMax.end())
+        return 0;
+    return IMPL->inputCapacitancesFallMax[pinName];
+}
+
 double Cell::outputMaxCapacitance(const std::string &pinName) const
 {
     if (!impl)
@@ -1437,14 +1509,42 @@ void Cell::setInputCapacitanceFall(const std::string &pinName, double cap)
     IMPL->inputCapacitancesFall[pinName] = cap;
 }
 
-void Cell::setOutputMaxCapacitance(const std::string &pinName, double cap) const
+void Cell::setInputCapacitanceRiseMin(const std::string &pinName, double cap)
+{
+    if (!impl)
+        return;
+    IMPL->inputCapacitancesRiseMin[pinName] = cap;
+}
+
+void Cell::setInputCapacitanceFallMin(const std::string &pinName, double cap)
+{
+    if (!impl)
+        return;
+    IMPL->inputCapacitancesFallMin[pinName] = cap;
+}
+
+void Cell::setInputCapacitanceRiseMax(const std::string &pinName, double cap)
+{
+    if (!impl)
+        return;
+    IMPL->inputCapacitancesRiseMax[pinName] = cap;
+}
+
+void Cell::setInputCapacitanceFallMax(const std::string &pinName, double cap)
+{
+    if (!impl)
+        return;
+    IMPL->inputCapacitancesFallMax[pinName] = cap;
+}
+
+void Cell::setOutputMaxCapacitance(const std::string &pinName, double cap)
 {
     if (!impl)
         return;
     IMPL->outputMaxCapacitance[pinName] = cap;
 }
 
-void Cell::setOutputMaxTransition(const std::string &pinName, double tran) const
+void Cell::setOutputMaxTransition(const std::string &pinName, double tran)
 {
     if (!impl)
         return;
