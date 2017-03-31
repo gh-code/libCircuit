@@ -83,6 +83,8 @@ public:
     bool operator!= (const Node&) const;
     ~Node();
 
+    bool hasParent() const;
+    Node parent() const;
     size_t inputSize() const;
     size_t outputSize() const;
     bool hasInput(const std::string &name) const;
@@ -103,12 +105,12 @@ public:
 
     Node cloneNode(bool deep = true) const;
 
-    void replaceName(Module &module, const std::string &name);
-
     inline std::string name() const { return nodeName(); }
     std::string nodeName() const;
     NodeType nodeType() const;
-    /* void setName(const std::string &name); */
+    
+    void setName(const std::string &name);
+    /* void replaceName(Module &module, const std::string &name); */
 
     bool isPort() const;
     bool isWire() const;

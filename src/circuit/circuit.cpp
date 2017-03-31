@@ -457,7 +457,7 @@ void NodePrivate::connect(const std::string &pin, NodePrivate *targ, const std::
         // targ need to be Port or Wire
         if (targ->isPort() || targ->isWire())
         {
-            if(pin == _dir2str(Node::Direct::right))
+            if(pin == _dir2str(Node::Direct::left))
             {
                 std::string key = _genkey(targ, _dir2str(Node::Direct::right), targ->outputNames.size());
                 this->inputNames.push_back(key);
@@ -467,7 +467,7 @@ void NodePrivate::connect(const std::string &pin, NodePrivate *targ, const std::
                 targ->outputNames.push_back(key);
                 targ->outputs[key] = this;
             }
-            else if(pin == _dir2str(Node::Direct::left))
+            else if(pin == _dir2str(Node::Direct::right))
             {
                 std::string key = _genkey(targ, _dir2str(Node::Direct::left), targ->inputNames.size());
                 outputNames.push_back(key);
@@ -642,6 +642,20 @@ Node::~Node()
         delete impl;
 }
 
+bool Node::hasParent() const
+{
+    if (!impl)
+        return 0;
+    return IMPL->hasParent;
+}
+
+Node Node::parent() const
+{
+    if (!impl)
+        return Node();
+    return Node(IMPL->parent());
+}
+
 size_t Node::inputSize() const
 {
     if (!impl)
@@ -769,19 +783,23 @@ std::string Node::nodeName() const
     return IMPL->name;
 }
 
-void Node::replaceName(Module &module, const std::string &name)
-{
-    if (!impl || module.isNull())
-        return;
-    IMPL->replaceName((ModulePrivate*)module.impl, name);
-}
-
-/* void Node::setName(const std::string &name) */
+/* void Node::replaceName(Module &module, const std::string &name) */
 /* { */
-/*     if (!impl) */
+/*     if (!impl || module.isNull()) */
 /*         return; */
-/*     IMPL->setName(name); */
+/*     IMPL->replaceName((ModulePrivate*)module.impl, name); */
 /* } */
+
+void Node::setName(const std::string &name)
+{
+    if (!impl)
+        return;
+
+    if (IMPL->hasParent)
+        IMPL->replaceName((ModulePrivate*)IMPL->ownerNode, name);
+    else
+        IMPL->setName(name);
+}
 
 Node::NodeType Node::nodeType() const
 {
@@ -2659,7 +2677,7 @@ static void handleInputCallByOrder(Module &module, Gate &gate, const std::string
         if (w.isNull())
         {
             w = module.createWire(from);
-            p.connect(Node::dir2str(Node::Direct::left), w);
+            p.connect(Node::dir2str(Node::Direct::right), w);
         }
         gate.connectInput((*counter), w);
         //gate.connectInput((*counter), p);
@@ -2689,7 +2707,7 @@ static void handleOutputCallByOrder(Module &module, Gate &gate, const std::strin
         if (w.isNull())
         {
             w = module.createWire(from);
-            p.connect(Node::dir2str(Node::Direct::right), w);
+            p.connect(Node::dir2str(Node::Direct::left), w);
         }
         gate.connectOutput((*counter), w);
         //gate.connectOutput((*counter), p);
@@ -2981,10 +2999,10 @@ void Circuit::load(std::fstream &infile, const std::string &path, CellLibrary &l
                                 switch (p.type())
                                 {
                                     case Port::Input:
-                                        p.connect(Node::dir2str(Node::Direct::left), w);
+                                        p.connect(Node::dir2str(Node::Direct::right), w);
                                         break;
                                     case Port::Output:
-                                        p.connect(Node::dir2str(Node::Direct::right), w);
+                                        p.connect(Node::dir2str(Node::Direct::left), w);
                                         break;
                                     default: ;/* do nothing */
                                 }

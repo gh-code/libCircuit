@@ -260,7 +260,7 @@ int main(int argc, char *argv[])
     cout << "===============================" << endl;
     cout << "===== Insert MUX to Cell  =====" << endl;
     cout << "===============================" << endl;
-    EDAUtils::insertCell2AllCellOutputs(circuit, library, EDAUtils::mux_connect_interal);
+    EDAUtils::insertCell2AllCellOutputs(circuit, library, EDAUtils::mux_connect_internal);
 
     temp.clear();
     EDAUtils::orderByLevel(circuit, temp);

@@ -333,7 +333,7 @@ void EDAUtils::removeAllDFF(Circuit &circuit)
                     if(!nodei.isNull())
                     {
                         Port ppo = module.createPort(EDAUTILS_PPO_PREFIX + nodei.name(), Port::PortType::PPO);
-                        nodei.connect(Node::dir2str(Node::Direct::left), ppo);
+                        nodei.connect(Node::dir2str(Node::Direct::right), ppo);
                     }
                 }
                 for(size_t pin_o = 0; pin_o < cell.outputSize(); pin_o++)
@@ -342,7 +342,7 @@ void EDAUtils::removeAllDFF(Circuit &circuit)
                     if(!nodeo.isNull())
                     {
                         Port ppi = module.createPort(EDAUTILS_PPI_PREFIX + nodeo.name(), Port::PortType::PPI);
-                        nodeo.connect(Node::dir2str(Node::Direct::right), ppi);
+                        nodeo.connect(Node::dir2str(Node::Direct::left), ppi);
                     }
                 }
             }
@@ -350,7 +350,7 @@ void EDAUtils::removeAllDFF(Circuit &circuit)
     }
 }
 
-static std::string _genWireName(const Cell &baseCell, const std::string &pin)
+std::string EDAUtils::genWireName(const Cell &baseCell, const std::string &pin)
 {
     std::ostringstream oss;
     oss << EDAUTILS_WIRE_SIGN << EDAUTILS_SCOPE_SIGN;
@@ -358,7 +358,7 @@ static std::string _genWireName(const Cell &baseCell, const std::string &pin)
     return oss.str();
 }
 
-static std::string _genPortName(const Cell &baseCell, const std::string &pin)
+std::string EDAUtils::genPortName(const Cell &baseCell, const std::string &pin)
 {
     std::ostringstream oss;
     oss << EDAUTILS_PORT_SIGN << EDAUTILS_SCOPE_SIGN;
@@ -366,7 +366,7 @@ static std::string _genPortName(const Cell &baseCell, const std::string &pin)
     return oss.str();
 }
 
-static std::string _genCellName(Circuit &circuit)
+std::string EDAUtils::genCellName(const Circuit &circuit)
 {
     static unsigned cellIdx = 0;
     std::ostringstream oss;
@@ -376,7 +376,7 @@ static std::string _genCellName(Circuit &circuit)
     return oss.str();
 }
 
-bool EDAUtils::mux_connect_interal(Circuit &circuit, Cell &target, CellLibrary &library, vector<Cell> &newCells)
+bool EDAUtils::mux_connect_internal(Circuit &circuit, Cell &target, CellLibrary &library, vector<Cell> &newCells)
 {
     if(library.hasCell("MUX2_X1"))
     {
@@ -386,19 +386,19 @@ bool EDAUtils::mux_connect_interal(Circuit &circuit, Cell &target, CellLibrary &
             if(outNode.isWire() || outNode.isPort())
             {
                 Cell newCell = library.cell("MUX2_X1");
-                /* circuit.topModule().setNodeName(newCell, _genCellName(circuit)); */
-                newCell.setName(_genCellName(circuit));
+                /* circuit.topModule().setNodeName(newCell, genCellName(circuit)); */
+                newCell.setName(genCellName(circuit));
                 
                 target.breakOutputConnection(target.outputPinName(out));
-                Wire ta = circuit.topModule().createWire(_genWireName(newCell, "A"));
-                Wire tb = circuit.topModule().createWire(_genWireName(newCell, "B"));
+                Wire ta = circuit.topModule().createWire(genWireName(newCell, "A"));
+                Wire tb = circuit.topModule().createWire(genWireName(newCell, "B"));
                 tb.setInternal(true);
-                tb.setValue(0);
-                Wire sel = circuit.topModule().createWire(_genWireName(newCell, "S"));
+                /* tb.setValue(0); */
+                Wire sel = circuit.topModule().createWire(genWireName(newCell, "S"));
                 sel.setInternal(true);
-                sel.setValue(0);
-                /* Port tb = circuit.topModule().createPort(_genPortName(newCell, "B"), Port::PortType::Input); */
-                /* Port sel = circuit.topModule().createPort(_genPortName(newCell, "S"), Port::PortType::Input); */
+                /* sel.setValue(0); */
+                /* Port tb = circuit.topModule().createPort(genPortName(newCell, "B"), Port::PortType::Input); */
+                /* Port sel = circuit.topModule().createPort(genPortName(newCell, "S"), Port::PortType::Input); */
 
                 newCell.connect("A", ta);
                 newCell.connect("B", tb);
@@ -467,22 +467,22 @@ void EDAUtils::timeFrameExpansion(Circuit &circuit, CellLibrary &library, const 
         for(size_t i = 0; i < topModule_t.portSize(); i++)
         {
             Port p = topModule_t.port(i);
-            p.replaceName(topModule_t, p.name() + EDAUTILS_CYCLE_SIGN + std::to_string(e));
+            p.setName(p.name() + EDAUTILS_CYCLE_SIGN + std::to_string(e));
         }
         for(size_t i = 0; i < topModule_t.wireSize(); i++)
         {
             Wire w = topModule_t.wire(i);
-            w.replaceName(topModule_t, w.name() + EDAUTILS_CYCLE_SIGN + std::to_string(e));
+            w.setName(w.name() + EDAUTILS_CYCLE_SIGN + std::to_string(e));
         }
         for(size_t i = 0; i < topModule_t.gateSize(); i++)
         {
             Gate g = topModule_t.gate(i);
-            g.replaceName(topModule_t, g.name() + EDAUTILS_CYCLE_SIGN + std::to_string(e));
+            g.setName(g.name() + EDAUTILS_CYCLE_SIGN + std::to_string(e));
         }
         for(size_t i = 0; i < topModule_t.cellSize(); i++)
         {
             Cell c = topModule_t.cell(i);
-            c.replaceName(topModule_t, c.name() + EDAUTILS_CYCLE_SIGN + std::to_string(e));
+            c.setName(c.name() + EDAUTILS_CYCLE_SIGN + std::to_string(e));
         }
 
         for(size_t i = 0; i < circuit.PPOSize(); i++)
