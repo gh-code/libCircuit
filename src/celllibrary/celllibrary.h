@@ -29,6 +29,9 @@ public:
     double nom_process() const;
     double nom_temperature() const;
     double nom_voltage() const;
+    std::string default_wire_load() const;
+    double wireResistance(int fanout) const;
+    double wireCapacitance(int fanout) const;
 
     size_t cellCount() const;
     inline size_t size() const { return cellCount(); }
@@ -39,6 +42,15 @@ public:
     bool isNull() const;
 
     bool load(std::fstream &infile, const std::string &path);
+
+    double inputWireDelayRiseMin(const Cell&, size_t index) const;
+    double inputWireDelayRiseMin(const Cell&, const std::string &pinIn) const;
+    double inputWireDelayRiseMax(const Cell&, size_t index) const;
+    double inputWireDelayRiseMax(const Cell&, const std::string &pinIn) const;
+    double inputWireDelayFallMin(const Cell&, size_t index) const;
+    double inputWireDelayFallMin(const Cell&, const std::string &pinIn) const;
+    double inputWireDelayFallMax(const Cell&, size_t index) const;
+    double inputWireDelayFallMax(const Cell&, const std::string &pinIn) const;
 
 private:
     CellLibraryPrivate *impl;

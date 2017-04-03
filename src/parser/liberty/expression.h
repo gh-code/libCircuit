@@ -34,7 +34,7 @@ public:
         TimingTableNode = 8,
         TimingNode      = 9,
         PinNode         = 10,
-        BaseNode        = 11
+        BaseNode        = 21
     };
     virtual ~LibertyNode() {};
     virtual LibertyNode::NodeType nodeType() const { return LibertyNode::BaseNode; }
@@ -53,6 +53,16 @@ public:
     std::vector<LibertyNode*> nodes;
 };
 
+class LNWireLoad : public LibertyNode
+{
+public:
+    double capacitance;
+    double resistance;
+    double area;
+    double slope;
+    std::map<int,double> fanout_length;
+};
+
 class LNLuTableTemplate : public LibertyNode
 {
 public:
@@ -61,7 +71,6 @@ public:
     std::string index_1;
     std::string index_2;
 };
-
 
 class LNRange : public LibertyNode
 {
@@ -109,7 +118,6 @@ private:
     LibertyNodeList *m_parameterList;
     LibertyNodeList *m_statementList;
 };
-
 
 class LNDefine : public LNStatement
 {
@@ -163,7 +171,6 @@ private:
     double data;
 };
 
-
 class LNValue : public LNStatement
 {
 public:
@@ -186,7 +193,6 @@ public:
 private:
     LibertyNode *m_value;
 };
-
 
 class LNTimingTable : public LibertyNode
 {
@@ -232,7 +238,6 @@ public:
     std::string sdf_cond;
 };
 
-
 class LNPin : public LibertyNode
 {
 public:
@@ -267,8 +272,6 @@ public:
     std::vector<LNPin*> pins;
 };
 
-
-
 class LibertyContext
 {
 public:
@@ -282,8 +285,10 @@ public:
     double nom_process;
     double nom_temperature;
     double nom_voltage;
-    std::map<std::string,LNCell> cells;
+    std::string default_wire_load;
+    std::map<std::string,LNWireLoad> wire_loads;
     std::map<std::string,LNLuTableTemplate> lu_table_templates;
+    std::map<std::string,LNCell> cells;
     std::vector<LibertyNode*> expressions;
 
     ~LibertyContext()
