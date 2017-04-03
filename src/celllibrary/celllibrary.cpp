@@ -36,7 +36,8 @@ public:
     double nom_voltage;
     double wire_load_resistance;
     double wire_load_capacitance;
-    std::map<int,double> fanout_length;
+    std::map<int,double> fanout_lengthes;
+    double slope;
     std::string default_wire_load;
 
     bool isDefault;
@@ -59,6 +60,7 @@ CellLibraryPrivate::CellLibraryPrivate() : isDefault(true)
     INV_X1.addOutputPinName("ZN");
     cells["INV_X1"] = INV_X1;
 
+    // fake cells
     createTwoInputCell("NAND2_X1", "A1", "A2", "ZN");
     createTwoInputCell( "AND2_X1", "A1", "A2", "ZN");
     createTwoInputCell( "NOR2_X1", "A1", "A2", "ZN");
@@ -80,22 +82,46 @@ CellLibraryPrivate::CellLibraryPrivate(const std::string &path) : isDefault(fals
 
 double CellLibraryPrivate::wireCapacitance(int fanout) const
 {
-    if (fanout_length.find(fanout) == fanout_length.end())
+    std::map<int,double>::const_iterator it = fanout_lengthes.lower_bound(fanout);
+    double fanout_length = 0.0;
+    if (it == fanout_lengthes.end())
     {
-        std::cerr << "Warning: fanout for wire load is out of range" << std::endl;
-        return 0.0;
+        it--;
+        fanout_length = it->second + (fanout - (it->first)) * slope;
     }
-    return wire_load_capacitance * fanout_length.at(fanout);
+    else if (fanout == it->first)
+    {
+        fanout_length = it->second;
+    }
+    else
+    {
+        std::map<int,double>::const_iterator i2 = it;
+        std::map<int,double>::const_iterator i1 = --it;
+        fanout_length = (i2->second + i1->second) / (i2->first - i1->first);
+    }
+    return wire_load_capacitance * fanout_length;
 }
 
 double CellLibraryPrivate::wireResistance(int fanout) const
 {
-    if (fanout_length.find(fanout) == fanout_length.end())
+    std::map<int,double>::const_iterator it = fanout_lengthes.lower_bound(fanout);
+    double fanout_length = 0.0;
+    if (it == fanout_lengthes.end())
     {
-        std::cerr << "Warning: fanout for wire load is out of range" << std::endl;
-        return 0.0;
+        it--;
+        fanout_length = it->second + (fanout - (it->first)) * slope;
     }
-    return wire_load_resistance * fanout_length.at(fanout);
+    else if (fanout == it->first)
+    {
+        fanout_length = it->second;
+    }
+    else
+    {
+        std::map<int,double>::const_iterator i2 = it;
+        std::map<int,double>::const_iterator i1 = --it;
+        fanout_length = (i2->second + i1->second) / (i2->first - i1->first);
+    }
+    return wire_load_resistance * fanout_length;
 }
 
 static void tableRowStringToDouble(std::vector<double> *out, const std::string &data)
@@ -219,7 +245,8 @@ bool CellLibraryPrivate::load(std::fstream &infile, const std::string &path)
     default_wire_load = liberty.default_wire_load;
     wire_load_resistance = liberty.wire_loads[default_wire_load].resistance;
     wire_load_capacitance = liberty.wire_loads[default_wire_load].capacitance;
-    fanout_length = liberty.wire_loads[default_wire_load].fanout_length;
+    fanout_lengthes = liberty.wire_loads[default_wire_load].fanout_length;
+    slope = liberty.wire_loads[default_wire_load].slope;
 
     std::map<std::string,LNCell>::iterator it;
     for (it = liberty.cells.begin(); it != liberty.cells.end(); ++it)
