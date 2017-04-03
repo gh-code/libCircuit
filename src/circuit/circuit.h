@@ -27,6 +27,7 @@ class Module;
 class Circuit;
 
 enum DelayType { None, MinDelay, MaxDelay };
+enum TimingSense { NegativeUnate, PositiveUnate, NonUnate };
 
 typedef std::string Pattern;
 class Signal
@@ -253,8 +254,10 @@ public:
     double inputCapacitanceFallMax(const std::string &pinIn) const;
     double outputMaxCapacitance(const std::string &pinOut) const;
     double outputMaxTransition(const std::string &pinOut) const;
-    double delay(const std::string &pinIn, const std::string &pinOut, Signal::Transition trans, double inputSlew, double outputLoad) const;
-    double slew(const std::string &pinIn, const std::string &pinOut, Signal::Transition trans, double inputSlew, double outputLoad) const;
+    double delay(const std::string &pinIn, const std::string &pinOut, Signal::Transition transIn, double inputSlew, double outputLoad) const;
+    double slew(const std::string &pinIn, const std::string &pinOut, Signal::Transition transIn, double inputSlew, double outputLoad) const;
+    double loadingMax(const std::string &pinIn, const std::string &pinOut, Signal::Transition transIn);
+    TimingSense timingSense(const std::string &pinIn, const std::string &pinOut);
 
     std::string inputPinName(size_t i);
     std::string outputPinName(size_t i);
@@ -399,6 +402,7 @@ public:
     Module createModule(const std::string &name);
 
     std::string filePath() const;
+    CellLibrary cellLibrary() const;
 
     void load(std::fstream&, const std::string&);
     void load(std::fstream&, const std::string&, CellLibrary &lib);
