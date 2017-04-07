@@ -88,6 +88,11 @@ WS  [ \t\v\n\f]
 "nom_process"                       { return token::NOM_PROCESS; }
 "nom_temperature"                   { return token::NOM_TEMPERATURE; }
 "nom_voltage"                       { return token::NOM_VOLTAGE; }
+"wire_load"                         { return token::WIRE_LOAD; }
+"resistance"                        { return token::RESISTANCE; }
+"slope"                             { return token::SLOPE; }
+"fanout_length"                     { return token::FANOUT_LENGTH; }
+"default_wire_load"                 { return token::DEFAULT_WIRE_LOAD; }
 "lu_table_template"                 { return token::LU_TABLE_TEMPLATE; }
 "variable_1"                        { return token::VARIABLE_1; }
 "variable_2"                        { return token::VARIABLE_2; }

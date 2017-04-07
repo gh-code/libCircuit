@@ -6,6 +6,7 @@
 #include <sstream>
 #include <set>
 #include <algorithm>
+#include <cassert>
 #include <qatomic.h>
 #include "../parser/verilog/driver.h"
 #include "../parser/verilog/expression.h"
@@ -86,9 +87,6 @@ public:
     bool hasParent : 1;
     bool isInternal;
 
-    TimingTable delayTables;
-    TimingTable transTables;
-
     std::string name;
     Signal value;
 };
@@ -149,6 +147,9 @@ public:
     void addInputPinName(const std::string &pinName);
     void addOutputPinName(const std::string &pinName);
     Port::PortType pinType(size_t i) const;
+    void outputCapacitanceMax();
+    double outputCapacitanceRiseMax();
+    double outputCapacitanceFallMax();
 
     void breakOutputConnection(const std::string &pinName);
 
@@ -162,9 +163,21 @@ public:
     std::map<std::string,double> inputCapacitances;
     std::map<std::string,double> inputCapacitancesRise;
     std::map<std::string,double> inputCapacitancesFall;
+    std::map<std::string,double> inputCapacitancesRiseMin;
+    std::map<std::string,double> inputCapacitancesFallMin;
+    std::map<std::string,double> inputCapacitancesRiseMax;
+    std::map<std::string,double> inputCapacitancesFallMax;
     std::map<std::string,double> outputMaxCapacitance;
     std::map<std::string,double> outputMaxTransition;
     std::vector<Port::PortType> pinTypes;
+
+    std::map<std::string,std::map<std::string,TimingSense> > timingSense;
+    TimingTable delayTables;
+    TimingTable transTables;
+
+    double cacheOutputCapacitanceRiseMax;
+    double cacheOutputCapacitanceFallMax;
+    bool dirty : 1;
 };
 
 class ModulePrivate : public NodePrivate
@@ -217,6 +230,8 @@ public:
     bool removeWire(const std::string &wireName);
     bool removePort(const std::string &portName);
 
+    Node::NodeType nodeType() const { return Node::ModuleNode; }
+
     std::map<std::string,PortPrivate*> ports;
     std::map<std::string,WirePrivate*> wires;
     std::map<std::string,CellPrivate*> cells;
@@ -257,6 +272,7 @@ public:
     ModulePrivate *topModule;
     std::map<std::string,ModulePrivate*> modules;
     std::vector<std::string> moduleNames;
+    CellLibrary *library;
 };
 
 /**************************************************************
@@ -1197,18 +1213,23 @@ std::string Gate::outputWireName() const
 CellPrivate::CellPrivate(CellPrivate* n, bool deep)
      : GatePrivate(n, deep)
  {
-     name = n->name;
-     type = n->type;
      area = n->area;
+     type = n->type;
      function = n->function;
      inputCapacitances = n->inputCapacitances;
      inputCapacitancesRise = n->inputCapacitancesRise;
      inputCapacitancesFall = n->inputCapacitancesFall;
+     inputCapacitancesRiseMin = n->inputCapacitancesRiseMin;
+     inputCapacitancesFallMin = n->inputCapacitancesFallMin;
+     inputCapacitancesRiseMax = n->inputCapacitancesRiseMax;
+     inputCapacitancesFallMax = n->inputCapacitancesFallMax;
      outputMaxCapacitance = n->outputMaxCapacitance;
      outputMaxTransition = n->outputMaxTransition;
+     pinTypes = n->pinTypes;
+     timingSense = n->timingSense;
      delayTables = n->delayTables;
      transTables = n->transTables;
-     pinTypes = n->pinTypes;
+     dirty = 1;
  }
 
 static Gate::GateType toGateType(const std::string &type)
@@ -1272,12 +1293,101 @@ Port::PortType CellPrivate::pinType(size_t i) const
     return pinTypes[i];
 }
 
+void CellPrivate::outputCapacitanceMax()
+{
+    CellLibrary *library = 0;
+    if (ownerNode && ownerNode->nodeType() == Node::ModuleNode)
+    {
+        ModulePrivate *module = (ModulePrivate*) ownerNode;
+        if (module->ownerNode)
+        {
+            CircuitPrivate *circuit = (CircuitPrivate*) module->ownerNode;
+            library = circuit->library;
+        }
+    }
+    bool isAddWireLoad = false;
+    size_t fanoutSize = outputs.size();
+    cacheOutputCapacitanceRiseMax = 0.0;
+    cacheOutputCapacitanceFallMax = 0.0;
+    std::map<std::string,NodePrivate*>::const_iterator it;
+    for (it = outputs.begin(); it != outputs.end(); ++it)
+    {
+        NodePrivate *node = it->second;
+        if (node->isWire())
+        {
+            fanoutSize = node->outputs.size();
+            std::map<std::string,NodePrivate*>::const_iterator jt;
+            for (jt = node->outputs.begin(); jt != node->outputs.end(); ++jt)
+            {
+                NodePrivate *wireOutput = jt->second;
+                if (wireOutput->isCell())
+                {
+                    CellPrivate *outputCell = (CellPrivate*) wireOutput;
+                    std::map<std::string,NodePrivate*>::const_iterator kt;
+                    std::string pin = _getPinfromKey(outputCell, jt->first);
+                    cacheOutputCapacitanceRiseMax += outputCell->inputCapacitancesRiseMax.at(pin);
+                    cacheOutputCapacitanceFallMax += outputCell->inputCapacitancesFallMax.at(pin);
+                }
+                else if (wireOutput->isPort())
+                {
+                    // ignore
+                }
+                else
+                {
+                    std::cerr << "Wire-Wire connection is undefined" << std::endl;
+                }
+            }
+            if (library)
+            {
+                double wireCap = library->wireCapacitance(fanoutSize);
+                cacheOutputCapacitanceRiseMax += wireCap;
+                cacheOutputCapacitanceFallMax += wireCap;
+                isAddWireLoad = true;
+            }
+        }
+        else if (node->isCell())
+        {
+            std::cerr << __func__ << " for Cell-Cell is not implemented" << std::endl;
+        }
+        else if (node->isPort())
+        {
+            // ignore
+        }
+        if (library && !isAddWireLoad)
+        {
+            double wireCap = library->wireCapacitance(fanoutSize);
+            cacheOutputCapacitanceRiseMax += wireCap;
+            cacheOutputCapacitanceFallMax += wireCap;
+        }
+    }
+}
+
+double CellPrivate::outputCapacitanceRiseMax()
+{
+    if (dirty)
+    {
+        outputCapacitanceMax();
+        dirty = 0;
+    }
+    return cacheOutputCapacitanceRiseMax;
+}
+
+double CellPrivate::outputCapacitanceFallMax()
+{
+    if (dirty)
+    {
+        outputCapacitanceMax();
+        dirty = 0;
+    }
+    return cacheOutputCapacitanceFallMax;
+}
+
 void CellPrivate::breakOutputConnection(const std::string &pinName)
 {
-    if(this->hasOutput(pinName))
+    if (this->hasOutput(pinName))
     {
         NodePrivate* nextNode = this->output(pinName);
-        if(nextNode->isWire() || nextNode->isPort())
+        if (nextNode->isWire() || nextNode->isPort())
         {
             this->outputs.erase(pinName);
             this->outputs[pinName] = 0;
@@ -1453,6 +1563,70 @@ double Cell::inputCapacitanceFall(const std::string &pinName) const
     return IMPL->inputCapacitancesFall[pinName];
 }
 
+double Cell::inputCapacitanceRiseMin(size_t i) const
+{
+    if (!impl)
+        return 0;
+    return IMPL->inputCapacitancesRiseMin[impl->inputNames[i]];
+}
+
+double Cell::inputCapacitanceRiseMin(const std::string &pinName) const
+{
+    if (!impl)
+        return 0;
+    if (IMPL->inputCapacitancesRiseMin.find(pinName) == IMPL->inputCapacitancesRiseMin.end())
+        return 0;
+    return IMPL->inputCapacitancesRiseMin[pinName];
+}
+
+double Cell::inputCapacitanceFallMin(size_t i) const
+{
+    if (!impl)
+        return 0;
+    return IMPL->inputCapacitancesFallMin[impl->inputNames[i]];
+}
+
+double Cell::inputCapacitanceFallMin(const std::string &pinName) const
+{
+    if (!impl)
+        return 0;
+    if (IMPL->inputCapacitancesFallMin.find(pinName) == IMPL->inputCapacitancesFallMin.end())
+        return 0;
+    return IMPL->inputCapacitancesFallMin[pinName];
+}
+
+double Cell::inputCapacitanceRiseMax(size_t i) const
+{
+    if (!impl)
+        return 0;
+    return IMPL->inputCapacitancesRiseMax[impl->inputNames[i]];
+}
+
+double Cell::inputCapacitanceRiseMax(const std::string &pinName) const
+{
+    if (!impl)
+        return 0;
+    if (IMPL->inputCapacitancesRiseMax.find(pinName) == IMPL->inputCapacitancesRiseMax.end())
+        return 0;
+    return IMPL->inputCapacitancesRiseMax[pinName];
+}
+
+double Cell::inputCapacitanceFallMax(size_t i) const
+{
+    if (!impl)
+        return 0;
+    return IMPL->inputCapacitancesFallMax[impl->inputNames[i]];
+}
+
+double Cell::inputCapacitanceFallMax(const std::string &pinName) const
+{
+    if (!impl)
+        return 0;
+    if (IMPL->inputCapacitancesFallMax.find(pinName) == IMPL->inputCapacitancesFallMax.end())
+        return 0;
+    return IMPL->inputCapacitancesFallMax[pinName];
+}
+
 double Cell::outputMaxCapacitance(const std::string &pinName) const
 {
     if (!impl)
@@ -1492,14 +1666,42 @@ void Cell::setInputCapacitanceFall(const std::string &pinName, double cap)
     IMPL->inputCapacitancesFall[pinName] = cap;
 }
 
-void Cell::setOutputMaxCapacitance(const std::string &pinName, double cap) const
+void Cell::setInputCapacitanceRiseMin(const std::string &pinName, double cap)
+{
+    if (!impl)
+        return;
+    IMPL->inputCapacitancesRiseMin[pinName] = cap;
+}
+
+void Cell::setInputCapacitanceFallMin(const std::string &pinName, double cap)
+{
+    if (!impl)
+        return;
+    IMPL->inputCapacitancesFallMin[pinName] = cap;
+}
+
+void Cell::setInputCapacitanceRiseMax(const std::string &pinName, double cap)
+{
+    if (!impl)
+        return;
+    IMPL->inputCapacitancesRiseMax[pinName] = cap;
+}
+
+void Cell::setInputCapacitanceFallMax(const std::string &pinName, double cap)
+{
+    if (!impl)
+        return;
+    IMPL->inputCapacitancesFallMax[pinName] = cap;
+}
+
+void Cell::setOutputMaxCapacitance(const std::string &pinName, double cap)
 {
     if (!impl)
         return;
     IMPL->outputMaxCapacitance[pinName] = cap;
 }
 
-void Cell::setOutputMaxTransition(const std::string &pinName, double tran) const
+void Cell::setOutputMaxTransition(const std::string &pinName, double tran)
 {
     if (!impl)
         return;
@@ -1549,7 +1751,14 @@ void Cell::addTimingTable(const std::string &type_,
 {
     if (!impl)
         return;
-    (void) timingSense; // No use
+
+    if (timingSense == "negative_unate")
+        IMPL->timingSense[pin][relatedPin] = NegativeUnate;
+    else if (timingSense == "positive_unate")
+        IMPL->timingSense[pin][relatedPin] = PositiveUnate;
+    else if (timingSense == "non_unate")
+        IMPL->timingSense[pin][relatedPin] = NonUnate;
+
     if (type_ == "delay")
         IMPL->delayTables[pin][relatedPin][transition] = new interpolate::interp2d(x, y, table);
     else if (type_ == "trans")
@@ -1566,6 +1775,8 @@ double Cell::delay(const std::string &pinIn, const std::string &pinOut, Signal::
         (IMPL->delayTables[pinOut].find(pinIn) == IMPL->delayTables[pinOut].end()) ||
         (IMPL->delayTables[pinOut][pinIn].find(trans) == IMPL->delayTables[pinOut][pinIn].end()))
         return 0.0;
+    if (IMPL->timingSense[pinOut][pinIn] == NegativeUnate)
+        trans = (trans == Signal::Rise ? Signal::Fall : Signal::Rise);
     return (*(IMPL->delayTables[pinOut][pinIn][trans]))(outputLoad, inputSlew);
 }
 
@@ -1577,9 +1788,36 @@ double Cell::slew(const std::string &pinIn, const std::string &pinOut, Signal::T
         (IMPL->transTables[pinOut].find(pinIn) == IMPL->transTables[pinOut].end()) ||
         (IMPL->transTables[pinOut][pinIn].find(trans) == IMPL->transTables[pinOut][pinIn].end()))
         return 0.0;
+    if (IMPL->timingSense[pinOut][pinIn] == NegativeUnate)
+        trans = (trans == Signal::Rise ? Signal::Fall : Signal::Rise);
     return (*(IMPL->transTables[pinOut][pinIn][trans]))(outputLoad, inputSlew);
 }
 
+double Cell::loadingMax(const std::string &pinIn, const std::string &pinOut, Signal::Transition trans)
+{
+    if (!impl)
+        return 0.0;
+
+    if (timingSense(pinIn, pinOut) == NegativeUnate)
+        trans = (trans == Signal::Rise ? Signal::Fall : Signal::Rise);
+
+    if (trans == Signal::Rise)
+        return IMPL->outputCapacitanceRiseMax();
+    else if (trans == Signal::Fall)
+        return IMPL->outputCapacitanceFallMax();
+    else
+        return 0.0;
+}
+
+TimingSense Cell::timingSense(const std::string &pinIn, const std::string &pinOut)
+{
+    if (!impl)
+        return TimingSense::NonUnate;
+    if (IMPL->timingSense.find(pinOut) == IMPL->timingSense.end() ||
+        IMPL->timingSense[pinOut].find(pinIn) == IMPL->timingSense[pinOut].end())
+        return TimingSense::NonUnate;
+    return IMPL->timingSense[pinOut][pinIn];
+}
 
 #undef IMPL
 
@@ -1730,7 +1968,6 @@ void ModulePrivate::addCell(CellPrivate *cell)
 {
     if (cells.find(cell->name) != cells.end())
         std::cerr << "WARNING: Duplicate add the same cell instance" << std::endl;
-    cell->setOwnerCircuit(this->ownerCircuit());
     cell->setParent(this);
     cell->ref.ref();
     cellNames.push_back(cell->name);
@@ -2455,6 +2692,7 @@ CircuitPrivate::CircuitPrivate(CircuitPrivate* n, bool deep)
     topModule = n->topModule;
     modules = n->modules;
     moduleNames = n->moduleNames;
+    library = n->library;
 }
 
 CircuitPrivate::~CircuitPrivate()
@@ -3035,6 +3273,7 @@ void Circuit::load(std::fstream &infile, const std::string &path, CellLibrary &l
 
         IMPL->path = path;
     }
+    IMPL->library = (lib.isDefault() ? 0 : &lib);
 }
 
 Circuit::Circuit(const Circuit &x)
@@ -3170,6 +3409,13 @@ std::string Circuit::filePath() const
     if (!impl)
         return "";
     return IMPL->path;
+}
+
+CellLibrary Circuit::cellLibrary() const
+{
+    if (!impl || !IMPL->library)
+        return CellLibrary();
+    return *(IMPL->library);
 }
 
 #undef IMPL
