@@ -18,6 +18,7 @@ const std::string EDAUTILS_SIGN = "EDAUTILS";
 const std::string EDAUTILS_PORT_SIGN = "PORT";
 const std::string EDAUTILS_WIRE_SIGN = "WIRE";
 const std::string EDAUTILS_CELL_SIGN = "CELL";
+const std::string EDAUTILS_FAKE_SIGN = "FAKE";
 
 void EDAUtils::levelize(const Circuit &circuit)
 {
@@ -191,6 +192,9 @@ void EDAUtils::levelize(const Circuit &circuit)
                             Queue.push_back(new Gate(gate));
                         }
                     }
+                    else if(node.isPort())
+                    {
+                    }
                     else
                     {
                         cout << "Illegal levelize Type" << endl;
@@ -313,7 +317,15 @@ void EDAUtils::orderByLevel(const Circuit &circuit, std::vector<Cell> &cells)
     std::sort(cells.begin(), cells.end(), _compare_);
 }
 
-void EDAUtils::removeAllDFF(Circuit &circuit)
+static std::string _genFakeCellName()
+{
+    static unsigned int n = 0;
+    std::ostringstream oss;
+    oss << EDAUTILS_FAKE_SIGN << EDAUTILS_SCOPE_SIGN << n++;
+    return oss.str();
+}
+
+void EDAUtils::removeAllDFF(Circuit &circuit, CellLibrary &library)
 {
     for(size_t m_idx = 0; m_idx < circuit.moduleSize(); m_idx++)
     {
@@ -324,6 +336,7 @@ void EDAUtils::removeAllDFF(Circuit &circuit)
             if(cell.type().find("FF") && cell.hasInput("CK"))
             {
                 module.removeNode(cell);
+                c_idx--; // cellSize decrease because remove
 
                 for(size_t pin_i = 0; pin_i < cell.inputSize(); pin_i++)
                 {
@@ -339,10 +352,27 @@ void EDAUtils::removeAllDFF(Circuit &circuit)
                 for(size_t pin_o = 0; pin_o < cell.outputSize(); pin_o++)
                 {
                     Node nodeo = cell.output(pin_o); // Wire
-                    if(!nodeo.isNull())
+                    if(!nodeo.isNull() && cell.outputPinName(pin_o) == "Q")
                     {
                         Port ppi = module.createPort(EDAUTILS_PPI_PREFIX + nodeo.name(), Port::PortType::PPI);
                         nodeo.connect(Node::dir2str(Node::Direct::left), ppi);
+                    }
+                    else if(!nodeo.isNull() && cell.outputPinName(pin_o) == "QN")
+                    {
+                        Cell fakeInv = library.cell("INV_X1");
+                        fakeInv.setName(_genFakeCellName());
+                        
+                        fakeInv.connect("A", cell.input("D"));
+
+                        module.addCell(fakeInv);
+                        Wire fakeWire = circuit.topModule().createWire(genWireName(fakeInv, "Z"));
+                        fakeInv.connect("ZN", fakeWire);
+
+                        Port ppi = module.createPort(EDAUTILS_PPI_PREFIX + nodeo.name(), Port::PortType::PPI);
+                        nodeo.connect(Node::dir2str(Node::Direct::left), ppi);
+
+                        Port ppo = module.createPort(EDAUTILS_PPO_PREFIX + fakeWire.name(), Port::PortType::PPO);
+                        fakeWire.connect(Node::dir2str(Node::Direct::right), ppo);
                     }
                 }
             }
@@ -446,7 +476,7 @@ void EDAUtils::timeFrameExpansion(Circuit &circuit, CellLibrary &library, const 
     
     unsigned e_cycles = cycles - 1;
 
-    removeAllDFF(circuit);
+    removeAllDFF(circuit, library);
     maintains.push_back(circuit);
     for(unsigned e = 0; e < e_cycles; e++)
     {
@@ -460,7 +490,7 @@ void EDAUtils::timeFrameExpansion(Circuit &circuit, CellLibrary &library, const 
         Circuit &circuit_t = maintains[e];
         circuit_t.load(filePath, library);
         
-        removeAllDFF(circuit_t);
+        removeAllDFF(circuit_t, library);
         Module topModule_t = circuit_t.topModule();
         
         // traverse all port / wire / gate / cell to replace name
@@ -519,6 +549,7 @@ void EDAUtils::timeFrameExpansion(Circuit &circuit, CellLibrary &library, const 
             topModule_t.removeNode(next_ppi);
             topModule_t.removeNode(next_wire);
 
+            i--; // circuit.cellSize() decrease because remove
             for(size_t j = 0; j < nodes.size(); j++)
             {
                 Node node = nodes[j];

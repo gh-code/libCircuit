@@ -53,7 +53,7 @@ class EDAUtils
          *  Circuit circuit("seq_17.v");
          *  EDAUtils::removeAllDFF(circuit);
          */
-        static void removeAllDFF(Circuit &circuit);
+        static void removeAllDFF(Circuit &circuit, CellLibrary &library);
 
         /**
          * Generate a Port name with EDAUtils.
@@ -155,7 +155,7 @@ class EDAUtils
          * @param cycles : time cycle specified to extend
          * @param maintains : the metadata for saving each extended circuit information
          *
-         * The target circuit will contain all information. Just use it to levelize..., etc.
+         * The target circuit will contain all information, including cell, port .... Just use it to levelize..., etc.
          * !! Alpha version !! 
          * This function will removeAllDFF automatically, and concat to target circuit object.
          *
