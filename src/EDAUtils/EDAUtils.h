@@ -84,8 +84,8 @@ class EDAUtils
         /**
          * Default CALLBACK function for insert MUX2_X1 to all cell output
          * MUX2_X1 has 3 inputs (A, B, S) and 1 output (Z)
-         * The all outputs of target will be inserted an MUX2_X1
-         * The output of the target cell will connect to pin A of MUX2_X1 
+         * The all outputs(pins) of target-cell  will be inserted an MUX2_X1
+         * The output of the target-cell will connect to pin A of MUX2_X1 
          * The pin S and pin B of MUX2_X1 are Wire and internal.
          * 
          * Example:
@@ -155,7 +155,7 @@ class EDAUtils
          * @param cycles : time cycle specified to extend
          * @param maintains : the metadata for saving each extended circuit information
          *
-         * The target circuit will contain all information, including cell, port .... Just use it to levelize..., etc.
+         * The target circuit will contain all information, including cells, ports .... Just use it to levelize..., etc.
          * !! Alpha version !! 
          * This function will removeAllDFF automatically, and concat to target circuit object.
          *
@@ -165,7 +165,7 @@ class EDAUtils
          *  vector<Circuit> maintains;
          *  EDAUtils::timeFrameExpansion(circuit, library, 10, maintains);
          */
-        static void timeFrameExpansion(Circuit &, CellLibrary &library, const unsigned cycles, std::vector<Circuit> &maintains);
+        static void timeFrameExpansion(Circuit &circuit, CellLibrary &library, const unsigned cycles, std::vector<Circuit> &maintains);
 };
 
 #endif

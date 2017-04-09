@@ -333,7 +333,7 @@ void EDAUtils::removeAllDFF(Circuit &circuit, CellLibrary &library)
         for(size_t c_idx = 0; c_idx < module.cellSize(); c_idx++)
         {
             Cell cell = module.cell(c_idx);
-            if(cell.type().find("FF") && cell.hasInput("CK"))
+            if(cell.type().find("FF") != std::string::npos && cell.hasInput("CK"))
             {
                 module.removeNode(cell);
                 c_idx--; // cellSize decrease because remove
@@ -584,5 +584,3 @@ void EDAUtils::timeFrameExpansion(Circuit &circuit, CellLibrary &library, const 
 
     }
 }
-
-

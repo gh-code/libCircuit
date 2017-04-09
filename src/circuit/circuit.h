@@ -52,6 +52,9 @@ public:
     Signal operator| (const Signal&);
     Signal operator|= (const Signal&);
     bool operator== (const Signal&);
+
+    bool operator== (const SignalType&);
+    bool operator!= (const SignalType&);
     Signal operator~ ();
     Signal operator! ();
     friend std::ostream& operator<< (std::ostream&, const Signal&);
