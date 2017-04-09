@@ -555,8 +555,10 @@ void EDAUtils::timeFrameExpansion(Circuit &circuit, CellLibrary &library, const 
                 Node node = nodes[j];
                 if(node.isGate())
                     node.connectInput(inputPing[j], prev_ppo.input(0));
-                if(node.isCell())
+                else if(node.isCell())
                     node.connect(inputPinc[j], prev_ppo.input(0));
+                else if(node.isPort())
+                    prev_wire.connect(Node::dir2str(Node::Direct::right), node);
             }
 
         }

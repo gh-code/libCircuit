@@ -166,21 +166,21 @@ int main(int argc, char *argv[])
     cout << std::string(79, '-') << endl;
 
     vector<Cell> temp;
-    EDAUtils::orderByLevel(circuit, temp);
+    /* EDAUtils::orderByLevel(circuit, temp); */
     
-    cout << "===============================" << endl;
-    cout << "========  Remove All DFF  =====" << endl;
-    cout << "===============================" << endl;
+    /* cout << "===============================" << endl; */
+    /* cout << "========  Remove All DFF  =====" << endl; */
+    /* cout << "===============================" << endl; */
     
-    EDAUtils::removeAllDFF(circuit);
+    /* EDAUtils::removeAllDFF(circuit, library); */
 
-    printCircuitInfo(circuit);
-    cout << "======== backward =========" << endl;
-    for (size_t i = 0; i < circuit.outputSize(); i++)
-        backward(circuit.outputPort(i));
-    cout << "======== forward ==========" << endl;
-    for (size_t i = 0; i < circuit.inputSize(); i++)
-        forward(circuit.inputPort(i));
+    /* printCircuitInfo(circuit); */
+    /* cout << "======== backward =========" << endl; */
+    /* for (size_t i = 0; i < circuit.outputSize(); i++) */
+    /*     backward(circuit.outputPort(i)); */
+    /* cout << "======== forward ==========" << endl; */
+    /* for (size_t i = 0; i < circuit.inputSize(); i++) */
+    /*     forward(circuit.inputPort(i)); */
 
 
     /* cout << "===============================" << endl; */
@@ -196,55 +196,55 @@ int main(int argc, char *argv[])
     /* for (size_t i = 0; i < circuit.inputSize(); i++) */
     /*     forward(circuit.inputPort(i)); */
 
-    temp.clear();
-    EDAUtils::orderByLevel(circuit, temp);
+/*     temp.clear(); */
+/*     EDAUtils::orderByLevel(circuit, temp); */
 
-    printCircuitInfo(circuit);
+/*     printCircuitInfo(circuit); */
 
-    cout << "===============================" << endl;
-    cout << "========= Simulation ==========" << endl;
-    cout << "===============================" << endl;
-    circuit.input("00000");
-    for (size_t i = 0; i < circuit.inputSize(); i++)
-    {
-        Port p = circuit.inputPort(i);
-        for(size_t j = 0; j < p.outputSize(); j++)
-        {
-            Node node = p.output(j);
-            if(node.isWire())
-                node.setValue(p.value());
-        }
-    }
-    for (size_t i = 0; i < temp.size(); i++)
-    {
-        Cell cell = temp[i];
-        cell.eval();
-        cell.output(0).eval();
-        cout << "Cell: " << cell.name() << "  Value = " << cell.value() << endl;
-        cout << "(";
-        for(size_t j = 0; j < cell.inputSize(); j++)
-            cout << cell.inputPinName(j) << ":" << cell.input(j).value() << " $ ";
-        cout << ")" << endl;
-    }
-    for (size_t i = 0; i < circuit.outputSize(); i++)
-    {
-        Port p = circuit.outputPort(i);
-        for(size_t j = 0; j < p.inputSize(); j++)
-        {
-            Node node = p.input(j);
-            if(node.isWire())
-                p.setValue(node.value());
-        }
-    }
-    cout << "output" << endl;
-    cout << circuit.output() << endl;
-    cout << endl;
+/*     cout << "===============================" << endl; */
+/*     cout << "========= Simulation ==========" << endl; */
+/*     cout << "===============================" << endl; */
+/*     circuit.input("00000"); */
+/*     for (size_t i = 0; i < circuit.inputSize(); i++) */
+/*     { */
+/*         Port p = circuit.inputPort(i); */
+/*         for(size_t j = 0; j < p.outputSize(); j++) */
+/*         { */
+/*             Node node = p.output(j); */
+/*             if(node.isWire()) */
+/*                 node.setValue(p.value()); */
+/*         } */
+/*     } */
+/*     for (size_t i = 0; i < temp.size(); i++) */
+/*     { */
+/*         Cell cell = temp[i]; */
+/*         cell.eval(); */
+/*         cell.output(0).eval(); */
+/*         cout << "Cell: " << cell.name() << "  Value = " << cell.value() << endl; */
+/*         cout << "("; */
+/*         for(size_t j = 0; j < cell.inputSize(); j++) */
+/*             cout << cell.inputPinName(j) << ":" << cell.input(j).value() << " $ "; */
+/*         cout << ")" << endl; */
+/*     } */
+/*     for (size_t i = 0; i < circuit.outputSize(); i++) */
+/*     { */
+/*         Port p = circuit.outputPort(i); */
+/*         for(size_t j = 0; j < p.inputSize(); j++) */
+/*         { */
+/*             Node node = p.input(j); */
+/*             if(node.isWire()) */
+/*                 p.setValue(node.value()); */
+/*         } */
+/*     } */
+/*     cout << "output" << endl; */
+/*     cout << circuit.output() << endl; */
+/*     cout << endl; */
 
     cout << "======================================" << endl;
     cout << "======== Timeframe Expansion =========" << endl;
     cout << "======================================" << endl;
     vector<Circuit> maintains;
-    EDAUtils::timeFrameExpansion(circuit, library, 3, maintains);
+    EDAUtils::timeFrameExpansion(circuit, library, 2, maintains);
 
     temp.clear();
     EDAUtils::orderByLevel(circuit, temp);
@@ -257,20 +257,20 @@ int main(int argc, char *argv[])
     for (size_t i = 0; i < circuit.inputSize(); i++)
         forward(circuit.inputPort(i));
 
-    cout << "===============================" << endl;
-    cout << "===== Insert MUX to Cell  =====" << endl;
-    cout << "===============================" << endl;
-    EDAUtils::insertCell2AllCellOutputs(circuit, library, EDAUtils::mux_connect_internal);
+    /* cout << "===============================" << endl; */
+    /* cout << "===== Insert MUX to Cell  =====" << endl; */
+    /* cout << "===============================" << endl; */
+    /* EDAUtils::insertCell2AllCellOutputs(circuit, library, EDAUtils::mux_connect_internal); */
 
-    temp.clear();
-    EDAUtils::orderByLevel(circuit, temp);
+    /* temp.clear(); */
+    /* EDAUtils::orderByLevel(circuit, temp); */
 
-    printCircuitInfo(circuit);
-    cout << "======== backward =========" << endl;
-    for (size_t i = 0; i < circuit.outputSize(); i++)
-        backward(circuit.outputPort(i));
-    cout << "======== forward ==========" << endl;
-    for (size_t i = 0; i < circuit.inputSize(); i++)
-        forward(circuit.inputPort(i));
+    /* printCircuitInfo(circuit); */
+    /* cout << "======== backward =========" << endl; */
+    /* for (size_t i = 0; i < circuit.outputSize(); i++) */
+    /*     backward(circuit.outputPort(i)); */
+    /* cout << "======== forward ==========" << endl; */
+    /* for (size_t i = 0; i < circuit.inputSize(); i++) */
+    /*     forward(circuit.inputPort(i)); */
     return 0;
 }
