@@ -362,17 +362,19 @@ void EDAUtils::removeAllDFF(Circuit &circuit, CellLibrary &library)
                         Cell fakeInv = library.cell("INV_X1");
                         fakeInv.setName(_genFakeCellName());
                         
-                        fakeInv.connect("A", cell.input("D"));
-
                         module.addCell(fakeInv);
-                        Wire fakeWire = circuit.topModule().createWire(genWireName(fakeInv, "Z"));
-                        fakeInv.connect("ZN", fakeWire);
+                        Wire fakeWire = circuit.topModule().createWire(genWireName(fakeInv, "A"));
 
-                        Port ppi = module.createPort(EDAUTILS_PPI_PREFIX + nodeo.name(), Port::PortType::PPI);
-                        nodeo.connect(Node::dir2str(Node::Direct::left), ppi);
+                        fakeInv.connect("A", fakeWire);
 
-                        Port ppo = module.createPort(EDAUTILS_PPO_PREFIX + fakeWire.name(), Port::PortType::PPO);
-                        fakeWire.connect(Node::dir2str(Node::Direct::right), ppo);
+                        fakeInv.connect("ZN", nodeo);
+
+                        Port ppi = module.createPort(EDAUTILS_PPI_PREFIX + fakeWire.name(), Port::PortType::PPI);
+                        fakeWire.connect(Node::dir2str(Node::Direct::left), ppi);
+
+                        Port ppo = module.createPort(EDAUTILS_PPO_PREFIX + cell.input("D").name() + EDAUTILS_SCOPE_SIGN + "INV", Port::PortType::PPO);
+                        cell.input("D").connect(Node::dir2str(Node::Direct::right), ppo);
+
                     }
                 }
             }

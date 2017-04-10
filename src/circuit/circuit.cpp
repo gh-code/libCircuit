@@ -2200,14 +2200,35 @@ bool ModulePrivate::removeWire(const std::string &wireName)
         {
             if(nodei->isWire() || nodei->isPort())
             {
-                std::string key = _genkey(wire, _dir2str(Node::Direct::left), in);
+                std::string key;
+                for(std::map<std::string, NodePrivate*>::iterator it = nodei->outputs.begin(); it != nodei->outputs.end(); it++)
+                {
+                    NodePrivate* cnode = it->second;
+                    if(cnode->name == wireName)
+                    {
+                        key = it->first;
+                        break;
+                    }
+                }
+                //std::string key = _genkey(wire, _dir2str(Node::Direct::left), in);
                 nodei->outputs.erase(key);
                 nodei->outputNames.erase(std::remove(nodei->outputNames.begin(), nodei->outputNames.end(), key), nodei->outputNames.end());
             }
             else if(nodei->isGate() || nodei->isCell())
             {
-                std::string key = _getPinfromKey(nodei, wire->inputNames[in]);
+                std::string key;
+                for(std::map<std::string, NodePrivate*>::iterator it = nodei->outputs.begin(); it != nodei->outputs.end(); it++)
+                {
+                    NodePrivate* cnode = it->second;
+                    if(cnode->name == wireName)
+                    {
+                        key = it->first;
+                        break;
+                    }
+                }
+                //std::string key = _getPinfromKey(nodei, wire->inputNames[in]);
                 nodei->outputs.erase(key);
+                nodei->outputs[key] = 0;
             }
         }
     }
@@ -2218,14 +2239,36 @@ bool ModulePrivate::removeWire(const std::string &wireName)
         {
             if(nodeo->isWire() || nodeo->isPort())
             {
-                std::string key = _genkey(wire, _dir2str(Node::Direct::right), out);
+                std::string key;
+                for(std::map<std::string, NodePrivate*>::iterator it = nodeo->inputs.begin(); it != nodeo->inputs.end(); it++)
+                {
+                    NodePrivate* cnode = it->second;
+                    if(cnode->name == wireName)
+                    {
+                        key = it->first;
+                        break;
+                    }
+                }
+                //std::string key = _genkey(wire, _dir2str(Node::Direct::right), out);
                 nodeo->inputs.erase(key);
                 nodeo->inputNames.erase(std::remove(nodeo->inputNames.begin(), nodeo->inputNames.end(), key), nodeo->inputNames.end());
             }
             else if(nodeo->isGate() || nodeo->isCell())
             {
-                std::string key = _getPinfromKey(nodeo, wire->outputNames[out]);
+                std::string key;
+                for(std::map<std::string, NodePrivate*>::iterator it = nodeo->inputs.begin(); it != nodeo->inputs.end(); it++)
+                {
+                    NodePrivate* cnode = it->second;
+                    if(cnode->name == wireName)
+                    {
+                        key = it->first;
+                        break;
+                    }
+                }
+                //std::string key = _getPinfromKey(nodeo, wire->outputNames[out]);
                 nodeo->inputs.erase(key);
+                nodeo->inputs[key] = 0;
+
             }
         }
     }
@@ -2245,14 +2288,35 @@ bool ModulePrivate::removePort(const std::string &portName)
         {
             if(nodei->isWire() || nodei->isPort())
             {
-                std::string key = _genkey(port, _dir2str(Node::Direct::left), in);
+                std::string key;
+                for(std::map<std::string, NodePrivate*>::iterator it = nodei->outputs.begin(); it != nodei->outputs.end(); it++)
+                {
+                    NodePrivate* cnode = it->second;
+                    if(cnode->name == portName)
+                    {
+                        key = it->first;
+                        break;
+                    }
+                }
+                //std::string key = _genkey(port, _dir2str(Node::Direct::left), in);
                 nodei->outputs.erase(key);
                 nodei->outputNames.erase(std::remove(nodei->outputNames.begin(), nodei->outputNames.end(), key), nodei->outputNames.end());
             }
             else if(nodei->isGate() || nodei->isCell())
             {
-                std::string key = _getPinfromKey(nodei, port->inputNames[in]);
+                std::string key;
+                for(std::map<std::string, NodePrivate*>::iterator it = nodei->outputs.begin(); it != nodei->outputs.end(); it++)
+                {
+                    NodePrivate* cnode = it->second;
+                    if(cnode->name == portName)
+                    {
+                        key = it->first;
+                        break;
+                    }
+                }
+                //std::string key = _getPinfromKey(nodei, port->inputNames[in]);
                 nodei->outputs.erase(key);
+                nodei->outputs[key] = 0;
             }
         }
     }
@@ -2263,14 +2327,35 @@ bool ModulePrivate::removePort(const std::string &portName)
         {
             if(nodeo->isWire() || nodeo->isPort())
             {
-                std::string key = _genkey(port, _dir2str(Node::Direct::right), out);
+                std::string key;
+                for(std::map<std::string, NodePrivate*>::iterator it = nodeo->inputs.begin(); it != nodeo->inputs.end(); it++)
+                {
+                    NodePrivate* cnode = it->second;
+                    if(cnode->name == portName)
+                    {
+                        key = it->first;
+                        break;
+                    }
+                }
+                //std::string key = _genkey(port, _dir2str(Node::Direct::right), out);
                 nodeo->inputs.erase(key);
                 nodeo->inputNames.erase(std::remove(nodeo->inputNames.begin(), nodeo->inputNames.end(), key), nodeo->inputNames.end());
             }
             else if(nodeo->isGate() || nodeo->isCell())
             {
-                std::string key = _getPinfromKey(nodeo, port->outputNames[out]);
+                std::string key;
+                for(std::map<std::string, NodePrivate*>::iterator it = nodeo->inputs.begin(); it != nodeo->inputs.end(); it++)
+                {
+                    NodePrivate* cnode = it->second;
+                    if(cnode->name == portName)
+                    {
+                        key = it->first;
+                        break;
+                    }
+                }
+                //std::string key = _getPinfromKey(nodeo, port->outputNames[out]);
                 nodeo->inputs.erase(key);
+                nodeo->inputs[key] = 0;
             }
         }
     }
@@ -2319,8 +2404,18 @@ bool ModulePrivate::removeGate(const std::string &gateName)
         {
             if(nodei->isWire() || nodei->isPort())
             {
-                nodei->outputs.erase(_genkey(gate, gate->inputNames[in]));
-                nodei->outputNames.erase(std::remove(nodei->outputNames.begin(), nodei->outputNames.end(), _genkey(gate, gate->inputNames[in])), nodei->outputNames.end());
+                std::string key;
+                for(std::map<std::string, NodePrivate*>::iterator it = nodei->outputs.begin(); it != nodei->outputs.end(); it++)
+                {
+                    NodePrivate* cnode = it->second;
+                    if(cnode->name == gateName)
+                    {
+                        key = it->first;
+                        break;
+                    }
+                }
+                nodei->outputs.erase(key);
+                nodei->outputNames.erase(std::remove(nodei->outputNames.begin(), nodei->outputNames.end(), key), nodei->outputNames.end());
             }
         }
     }
@@ -2331,8 +2426,18 @@ bool ModulePrivate::removeGate(const std::string &gateName)
         {
             if(nodeo->isWire() || nodeo->isPort())
             {
-                nodeo->inputs.erase(_genkey(gate, gate->outputNames[out]));
-                nodeo->inputNames.erase(std::remove(nodeo->inputNames.begin(), nodeo->inputNames.end(), _genkey(gate, gate->outputNames[out])), nodeo->inputNames.end());
+                std::string key;
+                for(std::map<std::string, NodePrivate*>::iterator it = nodeo->inputs.begin(); it != nodeo->inputs.end(); it++)
+                {
+                    NodePrivate* cnode = it->second;
+                    if(cnode->name == gateName)
+                    {
+                        key = it->first;
+                        break;
+                    }
+                }
+                nodeo->inputs.erase(key);
+                nodeo->inputNames.erase(std::remove(nodeo->inputNames.begin(), nodeo->inputNames.end(), key), nodeo->inputNames.end());
             }
         }
     }
@@ -2352,8 +2457,18 @@ bool ModulePrivate::removeCell(const std::string &cellName)
         {
             if(nodei->isWire() || nodei->isPort())
             {
-                nodei->outputs.erase(_genkey(cell, cell->inputNames[in]));
-                nodei->outputNames.erase(std::remove(nodei->outputNames.begin(), nodei->outputNames.end(), _genkey(cell, cell->inputNames[in])), nodei->outputNames.end());
+                std::string key;
+                for(std::map<std::string, NodePrivate*>::iterator it = nodei->outputs.begin(); it != nodei->outputs.end(); it++)
+                {
+                    NodePrivate* cnode = it->second;
+                    if(cnode->name == cellName)
+                    {
+                        key = it->first;
+                        break;
+                    }
+                }
+                nodei->outputs.erase(key);
+                nodei->outputNames.erase(std::remove(nodei->outputNames.begin(), nodei->outputNames.end(), key), nodei->outputNames.end());
             }
         }
     }
@@ -2364,8 +2479,18 @@ bool ModulePrivate::removeCell(const std::string &cellName)
         {
             if(nodeo->isWire() || nodeo->isPort())
             {
-                nodeo->inputs.erase(_genkey(cell, cell->outputNames[out]));
-                nodeo->inputNames.erase(std::remove(nodeo->inputNames.begin(), nodeo->inputNames.end(), _genkey(cell, cell->outputNames[out])), nodeo->inputNames.end());
+                std::string key;
+                for(std::map<std::string, NodePrivate*>::iterator it = nodeo->inputs.begin(); it != nodeo->inputs.end(); it++)
+                {
+                    NodePrivate* cnode = it->second;
+                    if(cnode->name == cellName)
+                    {
+                        key = it->first;
+                        break;
+                    }
+                }
+                nodeo->inputs.erase(key);
+                nodeo->inputNames.erase(std::remove(nodeo->inputNames.begin(), nodeo->inputNames.end(), key), nodeo->inputNames.end());
             }
         }
     }
