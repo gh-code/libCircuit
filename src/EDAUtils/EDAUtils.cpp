@@ -333,50 +333,40 @@ void EDAUtils::removeAllDFF(Circuit &circuit, CellLibrary &library)
         for(size_t c_idx = 0; c_idx < module.cellSize(); c_idx++)
         {
             Cell cell = module.cell(c_idx);
-            if(cell.type().find("FF") != std::string::npos && cell.hasInput("CK"))
+            if(cell.type() == "DFF_X1" && cell.hasInput("CK"))
             {
                 module.removeNode(cell);
                 c_idx--; // cellSize decrease because remove
 
-                for(size_t pin_i = 0; pin_i < cell.inputSize(); pin_i++)
+                Node nodei = cell.input("D");
+                if(!nodei.isNull())
                 {
-                    if(cell.inputPinName(pin_i) == "CK") continue;
-
-                    Node nodei = cell.input(pin_i); // Port or Wire
-                    if(!nodei.isNull())
-                    {
-                        Port ppo = module.createPort(EDAUTILS_PPO_PREFIX + nodei.name(), Port::PortType::PPO);
-                        nodei.connect(Node::dir2str(Node::Direct::right), ppo);
-                    }
+                    Port ppo = module.createPort(EDAUTILS_PPO_PREFIX + nodei.name(), Port::PortType::PPO);
+                    nodei.connect(Node::dir2str(Node::Direct::right), ppo);
                 }
-                for(size_t pin_o = 0; pin_o < cell.outputSize(); pin_o++)
+
+                Node nodeo = cell.output("Q");
+                if(!nodeo.isNull())
                 {
-                    Node nodeo = cell.output(pin_o); // Wire
-                    if(!nodeo.isNull() && cell.outputPinName(pin_o) == "Q")
-                    {
-                        Port ppi = module.createPort(EDAUTILS_PPI_PREFIX + nodeo.name(), Port::PortType::PPI);
-                        nodeo.connect(Node::dir2str(Node::Direct::left), ppi);
-                    }
-                    else if(!nodeo.isNull() && cell.outputPinName(pin_o) == "QN")
-                    {
-                        Cell fakeInv = library.cell("INV_X1");
-                        fakeInv.setName(_genFakeCellName());
-                        
-                        module.addCell(fakeInv);
-                        Wire fakeWire = circuit.topModule().createWire(genWireName(fakeInv, "A"));
-
-                        fakeInv.connect("A", fakeWire);
-
-                        fakeInv.connect("ZN", nodeo);
-
-                        Port ppi = module.createPort(EDAUTILS_PPI_PREFIX + fakeWire.name(), Port::PortType::PPI);
-                        fakeWire.connect(Node::dir2str(Node::Direct::left), ppi);
-
-                        Port ppo = module.createPort(EDAUTILS_PPO_PREFIX + cell.input("D").name() + EDAUTILS_SCOPE_SIGN + "INV", Port::PortType::PPO);
-                        cell.input("D").connect(Node::dir2str(Node::Direct::right), ppo);
-
-                    }
+                    Port ppi = module.createPort(EDAUTILS_PPI_PREFIX + nodeo.name(), Port::PortType::PPI);
+                    nodeo.connect(Node::dir2str(Node::Direct::left), ppi);
                 }
+
+                Node nodeon = cell.output("QN");
+                if(!nodeon.isNull())
+                {
+                    Cell fakeInv = library.cell("INV_X1");
+                    fakeInv.setName(_genFakeCellName());
+
+                    module.addCell(fakeInv);
+
+                    fakeInv.connect("ZN", nodeon);
+                    fakeInv.connect("A", nodeo);
+                }
+            }
+            else if(cell.type().find("FF") != std::string::npos && cell.hasInput("CK"))
+            {
+                cout << "Warning!! EDAUtils::removeAllDFF() Not handle FF type: " << cell.type() << endl;
             }
         }
     }
@@ -479,6 +469,7 @@ void EDAUtils::timeFrameExpansion(Circuit &circuit, CellLibrary &library, const 
     unsigned e_cycles = cycles - 1;
 
     removeAllDFF(circuit, library);
+
     maintains.push_back(circuit);
     for(unsigned e = 0; e < e_cycles; e++)
     {
@@ -552,13 +543,13 @@ void EDAUtils::timeFrameExpansion(Circuit &circuit, CellLibrary &library, const 
             topModule_t.removeNode(next_wire);
 
             i--; // circuit.cellSize() decrease because remove
-            for(size_t j = 0; j < nodes.size(); j++)
+            for(size_t j = 0, c = 0, g = 0; j < nodes.size(); j++)
             {
                 Node node = nodes[j];
                 if(node.isGate())
-                    node.connectInput(inputPing[j], prev_ppo.input(0));
+                    node.connectInput(inputPing[g++], prev_ppo.input(0));
                 else if(node.isCell())
-                    node.connect(inputPinc[j], prev_ppo.input(0));
+                    node.connect(inputPinc[c++], prev_ppo.input(0));
                 else if(node.isPort())
                     prev_wire.connect(Node::dir2str(Node::Direct::right), node);
             }
