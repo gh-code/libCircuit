@@ -52,6 +52,9 @@ public:
     Signal operator| (const Signal&);
     Signal operator|= (const Signal&);
     bool operator== (const Signal&);
+
+    bool operator== (const SignalType&);
+    bool operator!= (const SignalType&);
     Signal operator~ ();
     Signal operator! ();
     friend std::ostream& operator<< (std::ostream&, const Signal&);
@@ -86,6 +89,8 @@ public:
     bool operator!= (const Node&) const;
     ~Node();
 
+    bool hasParent() const;
+    Node parent() const;
     size_t inputSize() const;
     size_t outputSize() const;
     bool hasInput(const std::string &name) const;
@@ -109,7 +114,9 @@ public:
     inline std::string name() const { return nodeName(); }
     std::string nodeName() const;
     NodeType nodeType() const;
+    
     void setName(const std::string &name);
+    /* void replaceName(Module &module, const std::string &name); */
 
     bool isPort() const;
     bool isWire() const;
@@ -232,6 +239,9 @@ public:
     Cell& operator= (const Cell&);
 
     //Gate::GateType gateType() const;
+
+    // only used in the first begin of cell creation
+    void setName(const std::string &name);
     std::string type() const;
 
     double area() const;
@@ -346,6 +356,10 @@ public:
     Wire createWire(const std::string&);
     Gate createGate(const std::string&, Gate::GateType);
     Cell createCell(const std::string&, const std::string&);
+
+    void setNodeName(Node &, const std::string &name);
+
+    bool pushNode(Node &);
     bool removeNode(Node &node);
 
 private:
@@ -404,6 +418,7 @@ public:
     std::string filePath() const;
     CellLibrary cellLibrary() const;
 
+    void load(const std::string &path, CellLibrary &lib);
     void load(std::fstream&, const std::string&);
     void load(std::fstream&, const std::string&, CellLibrary &lib);
 

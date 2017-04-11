@@ -13,10 +13,12 @@ using namespace std;
 const std::string EDAUTILS_PPO_PREFIX = "PPO:";
 const std::string EDAUTILS_PPI_PREFIX = "PPI:";
 const std::string EDAUTILS_SCOPE_SIGN = ":";
+const std::string EDAUTILS_CYCLE_SIGN = "@";
 const std::string EDAUTILS_SIGN = "EDAUTILS";
 const std::string EDAUTILS_PORT_SIGN = "PORT";
 const std::string EDAUTILS_WIRE_SIGN = "WIRE";
 const std::string EDAUTILS_CELL_SIGN = "CELL";
+const std::string EDAUTILS_FAKE_SIGN = "FAKE";
 
 void EDAUtils::levelize(const Circuit &circuit)
 {
@@ -190,6 +192,9 @@ void EDAUtils::levelize(const Circuit &circuit)
                             Queue.push_back(new Gate(gate));
                         }
                     }
+                    else if(node.isPort())
+                    {
+                    }
                     else
                     {
                         cout << "Illegal levelize Type" << endl;
@@ -312,7 +317,15 @@ void EDAUtils::orderByLevel(const Circuit &circuit, std::vector<Cell> &cells)
     std::sort(cells.begin(), cells.end(), _compare_);
 }
 
-void EDAUtils::removeAllDFF(Circuit &circuit)
+static std::string _genFakeCellName()
+{
+    static unsigned int n = 0;
+    std::ostringstream oss;
+    oss << EDAUTILS_FAKE_SIGN << EDAUTILS_SCOPE_SIGN << n++;
+    return oss.str();
+}
+
+void EDAUtils::removeAllDFF(Circuit &circuit, CellLibrary &library)
 {
     for(size_t m_idx = 0; m_idx < circuit.moduleSize(); m_idx++)
     {
@@ -320,36 +333,46 @@ void EDAUtils::removeAllDFF(Circuit &circuit)
         for(size_t c_idx = 0; c_idx < module.cellSize(); c_idx++)
         {
             Cell cell = module.cell(c_idx);
-            if(cell.type().find("FF") && cell.hasInput("CK"))
+            if(cell.type() == "DFF_X1" && cell.hasInput("CK"))
             {
                 module.removeNode(cell);
+                c_idx--; // cellSize decrease because remove
 
-                for(size_t pin_i = 0; pin_i < cell.inputSize(); pin_i++)
+                Node nodei = cell.input("D");
+                if(!nodei.isNull())
                 {
-                    if(cell.inputPinName(pin_i) == "CK") continue;
+                    Port ppo = module.createPort(EDAUTILS_PPO_PREFIX + nodei.name(), Port::PortType::PPO);
+                    nodei.connect(Node::dir2str(Node::Direct::right), ppo);
+                }
 
-                    Node nodei = cell.input(pin_i); // Port or Wire
-                    if(!nodei.isNull())
-                    {
-                        Port ppo = module.createPort(EDAUTILS_PPO_PREFIX + nodei.name(), Port::PortType::PPO);
-                        nodei.connect(Node::dir2str(Node::Direct::left), ppo);
-                    }
-                }
-                for(size_t pin_o = 0; pin_o < cell.outputSize(); pin_o++)
+                Node nodeo = cell.output("Q");
+                if(!nodeo.isNull())
                 {
-                    Node nodeo = cell.output(pin_o); // Wire
-                    if(!nodeo.isNull())
-                    {
-                        Port ppi = module.createPort(EDAUTILS_PPI_PREFIX + nodeo.name(), Port::PortType::PPI);
-                        nodeo.connect(Node::dir2str(Node::Direct::right), ppi);
-                    }
+                    Port ppi = module.createPort(EDAUTILS_PPI_PREFIX + nodeo.name(), Port::PortType::PPI);
+                    nodeo.connect(Node::dir2str(Node::Direct::left), ppi);
                 }
+
+                Node nodeon = cell.output("QN");
+                if(!nodeon.isNull())
+                {
+                    Cell fakeInv = library.cell("INV_X1");
+                    fakeInv.setName(_genFakeCellName());
+
+                    module.addCell(fakeInv);
+
+                    fakeInv.connect("ZN", nodeon);
+                    fakeInv.connect("A", nodeo);
+                }
+            }
+            else if(cell.type().find("FF") != std::string::npos && cell.hasInput("CK"))
+            {
+                cout << "Warning!! EDAUtils::removeAllDFF() Not handle FF type: " << cell.type() << endl;
             }
         }
     }
 }
 
-static std::string _genWireName(const Cell &baseCell, const std::string &pin)
+std::string EDAUtils::genWireName(const Cell &baseCell, const std::string &pin)
 {
     std::ostringstream oss;
     oss << EDAUTILS_WIRE_SIGN << EDAUTILS_SCOPE_SIGN;
@@ -357,7 +380,7 @@ static std::string _genWireName(const Cell &baseCell, const std::string &pin)
     return oss.str();
 }
 
-static std::string _genPortName(const Cell &baseCell, const std::string &pin)
+std::string EDAUtils::genPortName(const Cell &baseCell, const std::string &pin)
 {
     std::ostringstream oss;
     oss << EDAUTILS_PORT_SIGN << EDAUTILS_SCOPE_SIGN;
@@ -365,7 +388,7 @@ static std::string _genPortName(const Cell &baseCell, const std::string &pin)
     return oss.str();
 }
 
-static std::string _genCellName(Circuit &circuit)
+std::string EDAUtils::genCellName(const Circuit &circuit)
 {
     static unsigned cellIdx = 0;
     std::ostringstream oss;
@@ -375,7 +398,7 @@ static std::string _genCellName(Circuit &circuit)
     return oss.str();
 }
 
-bool EDAUtils::mux_connect_interal(Circuit &circuit, Cell &target, CellLibrary &library, vector<Cell> &newCells)
+bool EDAUtils::mux_connect_internal(Circuit &circuit, Cell &target, CellLibrary &library, vector<Cell> &newCells)
 {
     if(library.hasCell("MUX2_X1"))
     {
@@ -385,18 +408,19 @@ bool EDAUtils::mux_connect_interal(Circuit &circuit, Cell &target, CellLibrary &
             if(outNode.isWire() || outNode.isPort())
             {
                 Cell newCell = library.cell("MUX2_X1");
-                newCell.setName(_genCellName(circuit));
+                /* circuit.topModule().setNodeName(newCell, genCellName(circuit)); */
+                newCell.setName(genCellName(circuit));
                 
                 target.breakOutputConnection(target.outputPinName(out));
-                Wire ta = circuit.topModule().createWire(_genWireName(newCell, "A"));
-                Wire tb = circuit.topModule().createWire(_genWireName(newCell, "B"));
+                Wire ta = circuit.topModule().createWire(genWireName(newCell, "A"));
+                Wire tb = circuit.topModule().createWire(genWireName(newCell, "B"));
                 tb.setInternal(true);
-                tb.setValue(0);
-                Wire sel = circuit.topModule().createWire(_genWireName(newCell, "S"));
+                /* tb.setValue(0); */
+                Wire sel = circuit.topModule().createWire(genWireName(newCell, "S"));
                 sel.setInternal(true);
-                sel.setValue(0);
-                /* Port tb = circuit.topModule().createPort(_genPortName(newCell, "B"), Port::PortType::Input); */
-                /* Port sel = circuit.topModule().createPort(_genPortName(newCell, "S"), Port::PortType::Input); */
+                /* sel.setValue(0); */
+                /* Port tb = circuit.topModule().createPort(genPortName(newCell, "B"), Port::PortType::Input); */
+                /* Port sel = circuit.topModule().createPort(genPortName(newCell, "S"), Port::PortType::Input); */
 
                 newCell.connect("A", ta);
                 newCell.connect("B", tb);
@@ -430,7 +454,128 @@ bool EDAUtils::insertCell2AllCellOutputs(Circuit &circuit, CellLibrary &library,
     return true;
 }
 
-void EDAUtils::timeFrameExpansion(Circuit &circuit, unsigned cycles)
+void EDAUtils::timeFrameExpansion(Circuit &circuit, CellLibrary &library, const unsigned cycles, vector<Circuit> &maintains)
 {
+    if(cycles == 1 || cycles == 0)
+        return;
+    else if(cycles > 100)
+    {
+        cout << "Cannot extend (>100): " << cycles << " cycles" << endl;
+        return;
+    }
     
+    string filePath = circuit.filePath();
+    
+    unsigned e_cycles = cycles - 1;
+
+    removeAllDFF(circuit, library);
+
+    maintains.push_back(circuit);
+    for(unsigned e = 0; e < e_cycles; e++)
+    {
+        Circuit t;
+        maintains.push_back(t);
+    }
+
+    Module topModule = circuit.topModule();
+    for(unsigned e = 1; e <= e_cycles; e++)
+    {
+        Circuit &circuit_t = maintains[e];
+        circuit_t.load(filePath, library);
+        
+        removeAllDFF(circuit_t, library);
+        Module topModule_t = circuit_t.topModule();
+        
+        // traverse all port / wire / gate / cell to replace name
+        for(size_t i = 0; i < topModule_t.portSize(); i++)
+        {
+            Port p = topModule_t.port(i);
+            p.setName(p.name() + EDAUTILS_CYCLE_SIGN + std::to_string(e));
+        }
+        for(size_t i = 0; i < topModule_t.wireSize(); i++)
+        {
+            Wire w = topModule_t.wire(i);
+            w.setName(w.name() + EDAUTILS_CYCLE_SIGN + std::to_string(e));
+        }
+        for(size_t i = 0; i < topModule_t.gateSize(); i++)
+        {
+            Gate g = topModule_t.gate(i);
+            g.setName(g.name() + EDAUTILS_CYCLE_SIGN + std::to_string(e));
+        }
+        for(size_t i = 0; i < topModule_t.cellSize(); i++)
+        {
+            Cell c = topModule_t.cell(i);
+            c.setName(c.name() + EDAUTILS_CYCLE_SIGN + std::to_string(e));
+        }
+
+        for(size_t i = 0; i < circuit.PPOSize(); i++)
+        {
+            Port prev_ppo = circuit.PPO(i);
+            Port next_ppi = circuit_t.PPI(i);
+
+            Node prev_wire = prev_ppo.input(0);
+            Node next_wire = next_ppi.output(0);
+            
+            vector<int> inputPing;
+            vector<string> inputPinc;
+            vector<Node> nodes;
+            for(size_t j = 0; j < next_wire.outputSize(); j++)
+            {
+                Node node = next_wire.output(j);
+           
+                size_t k = 0;
+                for(; k < node.inputSize(); k++)
+                    if(node.input(k).name() == next_wire.name())
+                        break;
+                if(k >= node.inputSize())
+                    cerr << "EDAUtils::timeFrameExpansion err: can not find the matched wire" << endl;
+
+                if(node.isGate())
+                    inputPing.push_back(k);
+                else if(node.isCell())
+                    inputPinc.push_back(node.toCell().inputPinName(k));
+
+                nodes.push_back(next_wire.output(j));
+            }
+
+            topModule.removeNode(prev_ppo);
+            topModule_t.removeNode(next_ppi);
+            topModule_t.removeNode(next_wire);
+
+            i--; // circuit.cellSize() decrease because remove
+            for(size_t j = 0, c = 0, g = 0; j < nodes.size(); j++)
+            {
+                Node node = nodes[j];
+                if(node.isGate())
+                    node.connectInput(inputPing[g++], prev_ppo.input(0));
+                else if(node.isCell())
+                    node.connect(inputPinc[c++], prev_ppo.input(0));
+                else if(node.isPort())
+                    prev_wire.connect(Node::dir2str(Node::Direct::right), node);
+            }
+
+        }
+        
+        for(size_t i = 0; i < topModule_t.portSize(); i++)
+        {
+            Port p = topModule_t.port(i);
+            topModule.pushNode(p);
+        }
+        for(size_t i = 0; i < topModule_t.wireSize(); i++)
+        {
+            Wire w = topModule_t.wire(i);
+            topModule.pushNode(w);
+        }
+        for(size_t i = 0; i < topModule_t.gateSize(); i++)
+        {
+            Gate g = topModule_t.gate(i);
+            topModule.pushNode(g);
+        }
+        for(size_t i = 0; i < topModule_t.cellSize(); i++)
+        {
+            Cell c = topModule_t.cell(i);
+            topModule.pushNode(c);
+        }
+
+    }
 }
