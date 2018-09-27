@@ -17,7 +17,7 @@ libCircuit is a C++ Library for EDA software development
 ## Usage
 Get the source code:
 ```sh
-$ git clone git@cialab.nctu.me:/EDA/libCircuit.git
+$ git clone https://github.com/gh-code/libCircuit.git
 ```
 
 Compile:
